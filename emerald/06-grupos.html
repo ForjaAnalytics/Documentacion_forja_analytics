@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modelo de grupos — Emerald Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Emerald</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-componentes.html">Componentes</a>
+  <a href="05-flujos.html">Flujos de negocio</a>
+  <a href="06-grupos.html" class="active">Modelo de grupos</a>
+  <a href="07-integraciones.html">Integraciones externas</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-dashboard.html">Dashboard</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-stack.html">Stack &amp; Deploy</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">06 · Modelo de grupos</h2>
+  <h3 class="title">N vacantes → 1 rol</h3>
+  <p class="sub">La abstracción central del sistema. Sin ella, una búsqueda de "Customer Service" en 11 países serían 11 roles separados en HiPeople y 11 listas de candidatos fragmentadas.</p>
+
+  <div class="diagram">
+    <div class="row" style="align-items:center">
+      <div style="flex:1.4">
+        <div class="row" style="flex-direction:column;gap:8px">
+          <div class="node ext" style="min-width:0"><div class="nh" style="font-size:13px"><span class="dotc"></span> CSR — México <span class="badge b-gray" style="margin-left:auto">jazzhr_id</span></div></div>
+          <div class="node ext" style="min-width:0"><div class="nh" style="font-size:13px"><span class="dotc"></span> CSR — Colombia <span class="badge b-gray" style="margin-left:auto">jazzhr_id</span></div></div>
+          <div class="node ext" style="min-width:0"><div class="nh" style="font-size:13px"><span class="dotc"></span> CSR — Perú <span class="badge b-gray" style="margin-left:auto">jazzhr_id</span></div></div>
+          <div style="text-align:center;color:var(--ink-dim);font-size:12px">+ 8 países más…</div>
+        </div>
+      </div>
+      <div class="flowarrow" style="font-size:26px;flex:0 0 auto;padding:0 6px">→</div>
+      <div style="flex:1">
+        <div class="node wrk"><span class="tag">group_key</span><div class="nh"><span class="dotc"></span> Grupo "customer service representative"</div><div class="nd">1 fila en <code>job_group</code>. Mantiene <code>hipeople_id</code>, flow, umbral, estado.</div></div>
+      </div>
+      <div class="flowarrow" style="font-size:26px;flex:0 0 auto;padding:0 6px">→</div>
+      <div style="flex:.9">
+        <div class="node ext"><span class="tag">hipeople_id</span><div class="nh"><span class="dotc"></span> 1 rol HiPeople</div><div class="nd">Todos los candidatos de los 11 países caen aquí.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <p>La clave del grupo (<code>group_key</code>) es el título normalizado en minúsculas. Cada vacante de JazzHR (<code>job_mapping</code>) apunta a su grupo y guarda el <code>country</code> que lo distingue. HiPeople <strong>deduplica candidatos por email</strong>: un mismo email = un solo candidato en el rol, sin importar a cuántos países aplicó.</p>
+
+  <p><strong>Consolidación de grupos.</strong> Cuando JazzHR crea N vacantes del mismo título, el poller las descubre como N grupos con sufijo de país. Un consolidator los fusiona en DB; la consolidación opera a nivel de base de datos y no elimina los roles que el bot ya hubiera creado en HiPeople. El patrón correcto es <em>consolidar antes de aprobar</em>, de modo que no lleguen a crearse roles de más. El procedimiento detallado está documentado en <code>CLAUDE.md</code>.</p>
+</section>
+
+<nav class="pagenav">
+  <a href="05-flujos.html">← Flujos de negocio</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="07-integraciones.html">Integraciones externas →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

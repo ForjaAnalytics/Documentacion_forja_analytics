@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Operación — Emerald Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Emerald</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-componentes.html">Componentes</a>
+  <a href="05-flujos.html">Flujos de negocio</a>
+  <a href="06-grupos.html">Modelo de grupos</a>
+  <a href="07-integraciones.html">Integraciones externas</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-dashboard.html">Dashboard</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-stack.html">Stack &amp; Deploy</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-operacion.html" class="active">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">13 · Operación</h2>
+  <h3 class="title">Alta de grupos &amp; runbook</h3>
+  <p class="sub">Lo necesario para operar el sistema. El detalle exhaustivo vive en <code>CLAUDE.md</code> y <code>ARCHITECTURE.md</code>.</p>
+
+  <h4 style="font-size:16px;margin:0 0 12px">Alta de un grupo nuevo</h4>
+  <div class="tline">
+    <div class="ev"><span class="d">Automático</span><br><b>El poller descubre la vacante</b> → crea filas en <code>job_group</code> + <code>job_mapping</code> con <code>creation_decision='pending_decision'</code>.</div>
+    <div class="ev"><span class="d">Humano · dashboard</span><br><b>Aprobar el grupo</b> eligiendo el flow (<code>/api/decisions/{key}/approve</code>).</div>
+    <div class="ev"><span class="d">Automático · sender</span><br><b>Crea el rol en HiPeople</b> en el siguiente ciclo (~10s).</div>
+    <div class="ev"><span class="d">Humano · HiPeople UI</span><br><b>Configurar módulos</b> (Interview with AI + criteria + assessment template).</div>
+    <div class="ev"><span class="d">Automático</span><br><b>Auto-detección de readiness</b> marca <code>assessment_ready_at</code> en ≤60s → empiezan las invitaciones.</div>
+  </div>
+
+  <h4 style="font-size:16px;margin:26px 0 12px">Síntomas y causas</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Síntoma</th><th>Causa / acción</th></tr></thead>
+    <tbody>
+      <tr><td>Sender no invita aunque el grupo está approved+synced</td><td><code>assessment_ready_at IS NULL</code>. Configurar el rol en HiPeople o llamar <code>mark-template-ready</code>.</td></tr>
+      <tr><td>Promoter reporta "0/N completed with score"</td><td>HiPeople usa un badge de estado no reconocido. Ampliar el matcher en <code>scrape_interview_results</code>.</td></tr>
+      <tr><td>Candidato "se mueve hacia atrás" en RF</td><td>Bug de sibling: dos prospectos con el mismo email. <code>derive_target</code> retorna <code>noop</code> para skipped+duplicado.</td></tr>
+      <tr><td>Stages renombrados en RF no se respetan</td><td>El cache <code>stages_json</code> no expira. Invalidar: <code>UPDATE rf_job_mapping SET stages_json='{}'</code>.</td></tr>
+      <tr><td>Bot crashea creando el rol</td><td>HiPeople cambió selectores del wizard. Revisar screenshots en <code>data/screenshots/create_role/</code> y actualizar <code>hipeople_bot.py</code>.</td></tr>
+      <tr><td>Sesión HiPeople/JazzHR expirada</td><td>Re-bootstrap login, actualizar env var <code>*_STORAGE_STATE_B64</code>, redeploy.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:26px 0 12px">Lag de JazzHR</h4>
+  <ul>
+    <li>El endpoint global <code>/applicants</code> tarda ~30–60 s en reflejar un applicant nuevo → por eso el poller corre cada 5 min.</li>
+    <li>El endpoint per-job <code>/applicants/job_id/{id}</code> tiene lag de <em>varios minutos</em> → por eso la pasada global es la primaria y la per-job solo cubre el bug de omisión.</li>
+    <li><code>POST /jobs</code> de JazzHR tiene validaciones crípticas → las vacantes se crean manualmente en la UI de JazzHR.</li>
+  </ul>
+</section>
+
+<nav class="pagenav">
+  <a href="12-seguridad.html">← Seguridad</a>
+  <a class="idx" href="index.html">Índice</a>
+  <span class="spacer"></span>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

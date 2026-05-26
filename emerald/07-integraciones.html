@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integraciones externas — Emerald Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Emerald</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-componentes.html">Componentes</a>
+  <a href="05-flujos.html">Flujos de negocio</a>
+  <a href="06-grupos.html">Modelo de grupos</a>
+  <a href="07-integraciones.html" class="active">Integraciones externas</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-dashboard.html">Dashboard</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-stack.html">Stack &amp; Deploy</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">07 · Integraciones</h2>
+  <h3 class="title">Cómo habla Emerald con cada plataforma</h3>
+  <p class="sub">Tres integraciones, tres mecanismos distintos. La elección no fue arbitraria: vino impuesta por lo que cada plataforma expone.</p>
+
+  <div class="grid g3">
+    <div class="card"><h4><span class="badge b-blue">JazzHR</span></h4>
+      <p><strong>API REST · solo lectura.</strong> <code>shared/jazzhr/client.py</code> rechaza cualquier método ≠ GET cuando <code>JAZZHR_READ_ONLY=true</code> — defensa para no mutar jamás el ATS de producción del cliente.</p>
+      <p style="font-size:13px;color:var(--ink-dim)">Endpoints: <code>/jobs</code>, <code>/jobs/status/open</code>, <code>/applicants</code> (global), <code>/applicants/job_id/{id}</code>, <code>/applicants/{id}</code>.</p>
+      <p style="font-size:13px;color:var(--ink-dim)">Un bot Playwright secundario (<code>web_bot.py</code>) descarga CVs cuando el S3 público devuelve 403.</p>
+    </div>
+    <div class="card" style="border-color:rgba(167,139,250,.3)"><h4><span class="badge b-violet">HiPeople</span></h4>
+      <p><strong>Solo bot Playwright.</strong> No hay API de escritura usable y la de lectura está bloqueada por plan en este tenant. Toda interacción es UI automatizada.</p>
+      <p style="font-size:13px;color:var(--ink-dim)">Sesión en <code>hipeople_storage_state.json</code>, replicada como env var base64 para el deploy. Un login (con MFA si aplica) se reutiliza indefinidamente.</p>
+      <p style="font-size:13px;color:var(--ink-dim)">Es el punto más acoplado a la UI: si HiPeople refactoriza su interfaz, hay que actualizar selectores.</p>
+    </div>
+    <div class="card"><h4><span class="badge b-blue">RecruiterFlow</span></h4>
+      <p><strong>API REST.</strong> <code>shared/recruiterflow/client.py</code>, auth por header <code>RF-Api-Key</code>. Es el destino de escritura: mueve y descalifica candidatos.</p>
+      <p style="font-size:13px;color:var(--ink-dim)">Endpoints: <code>/candidate/search</code>, <code>/add</code>, <code>/add-to-job</code>, <code>/move-to-stage</code>, <code>/disqualify</code>, <code>/file/add</code>, <code>/job/list</code>, <code>/job/{id}/pipeline</code>.</p>
+      <p style="font-size:13px;color:var(--ink-dim)">Deduplica por email (HTTP 409 → recupera el id existente).</p>
+    </div>
+  </div>
+
+  <p><strong>Sesiones de navegador.</strong> Las sesiones Playwright se persisten como archivos JSON en <code>data/</code> y se replican en las env vars <code>EMERALD_HIPEOPLE_STORAGE_STATE_B64</code> y <code>EMERALD_JAZZHR_STORAGE_STATE_B64</code> (base64). Un contenedor de bootstrap materializa el archivo desde la env var al arrancar — así el deploy en Railway no necesita un volumen persistente para las cookies.</p>
+</section>
+
+<nav class="pagenav">
+  <a href="06-grupos.html">← Modelo de grupos</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="08-base-datos.html">Base de datos →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

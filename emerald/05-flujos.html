@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flujos de negocio — Emerald Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Emerald</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-componentes.html">Componentes</a>
+  <a href="05-flujos.html" class="active">Flujos de negocio</a>
+  <a href="06-grupos.html">Modelo de grupos</a>
+  <a href="07-integraciones.html">Integraciones externas</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-dashboard.html">Dashboard</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-stack.html">Stack &amp; Deploy</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">05 · Lógica de negocio</h2>
+  <h3 class="title">Los dos flujos de invitación</h3>
+  <p class="sub">Cada grupo elige su flujo al ser aprobado (<code>job_group.first_invite_module</code>). Solo existen estos dos valores; el sistema valida estrictamente.</p>
+
+  <div class="two">
+    <div class="card" style="border-color:rgba(16,185,129,.35)">
+      <h4><span class="badge b-em">DEFAULT</span> voice_screening</h4>
+      <p style="font-size:13.5px;color:var(--ink-dim);margin-bottom:14px">"Flujo invertido" — el primer contacto es la entrevista por voz, no el assessment.</p>
+      <ol style="font-size:14px">
+        <li>Sender sube el CV al voice-screening del rol.</li>
+        <li>HiPeople envía email con el link a la AI Interview.</li>
+        <li>El candidato hace la entrevista → score automático.</li>
+        <li>Promoter lee scores cada 3 min.</li>
+        <li>Si <code>score ≥ 70%</code> → "Send out Assessment".</li>
+        <li>Operador califica 1–4 desde HiPeople UI.</li>
+        <li>rf-sync mueve al stage según el rating.</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h4><span class="badge b-gray">LEGACY</span> assessment</h4>
+      <p style="font-size:13.5px;color:var(--ink-dim);margin-bottom:14px">"Assessment-first" — el candidato recibe el assessment directo, sin entrevista previa.</p>
+      <ol style="font-size:14px">
+        <li>Sender llama al modal "Invite candidates" del rol.</li>
+        <li>HiPeople envía el email del assessment.</li>
+        <li>El promoter <strong>no</strong> procesa estos grupos (no hay voz que leer).</li>
+        <li>Operador califica 1–4 → rf-sync mueve al stage.</li>
+      </ol>
+      <p style="font-size:13px;color:var(--ink-dim);margin-top:8px">Se usa para roles donde no aplica la entrevista por voz (ej. perfiles técnicos como "Arquitecto").</p>
+    </div>
+  </div>
+
+  <h4 style="font-size:18px;margin:30px 0 14px">Ciclo de vida del candidato (flujo invertido)</h4>
+  <div class="pipe">
+    <div class="stage"><div class="sn">01</div><div class="st">Pending</div><div class="sw">poller</div><div class="rf">RF: Sourced</div></div>
+    <div class="stage"><div class="sn">02</div><div class="st">Voice Sent</div><div class="sw">sender</div><div class="rf">RF: V.S. Sent</div></div>
+    <div class="stage"><div class="sn">03</div><div class="st">Interview Scored</div><div class="sw">candidato</div><div class="rf">DB: score</div></div>
+    <div class="stage"><div class="sn">04</div><div class="st">Assessment Sent</div><div class="sw">promoter</div><div class="rf">RF: Assess. Sent</div></div>
+    <div class="stage"><div class="sn">05</div><div class="st">Evaluado 1–4</div><div class="sw">operador</div><div class="rf">RF: eval stage</div></div>
+  </div>
+  <div class="legend">
+    <span><span class="dotc" style="background:var(--em)"></span> escrito por un worker</span>
+    <span><span class="dotc" style="background:var(--blue)"></span> acción externa (candidato/operador)</span>
+    <span><span class="dotc" style="background:var(--amber)"></span> umbral: <code style="font-size:11px">interview_promote_threshold = 70%</code></span>
+  </div>
+
+  <hr class="soft">
+
+  <h4 style="font-size:18px;margin:0 0 12px">Calificación manual (1–4)</h4>
+  <p>El operador asigna un rating al candidato, ya sea desde el dashboard de Emerald o desde la columna "Evaluation" del rol en HiPeople (el promoter la sincroniza cada 3 min). Ambas rutas terminan en el mismo campo y disparan el mismo <em>move-to-stage</em>:</p>
+  <div class="tw"><table>
+    <thead><tr><th>Rating</th><th>Efecto</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-gray">1 · 2</span></td><td>Solo se registran en <code>manual_rating</code>. No afectan el stage en RF.</td></tr>
+      <tr><td><span class="badge b-blue">3</span></td><td>Mueve al stage <code>eval_3</code> (default: <em>Pre-selection: Video + CV + Hipeople</em>).</td></tr>
+      <tr><td><span class="badge b-em">4</span></td><td>Mueve al stage <code>eval_4</code> (default: <em>Internal Interview · Top selection</em>).</td></tr>
+      <tr><td><span class="badge b-amber">clear</span></td><td><code>manual_rating = NULL</code> → rf-sync recalcula el stage automático.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<nav class="pagenav">
+  <a href="04-componentes.html">← Componentes</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="06-grupos.html">Modelo de grupos →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

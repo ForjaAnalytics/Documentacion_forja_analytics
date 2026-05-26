@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Base de datos — Emerald Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Emerald</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-componentes.html">Componentes</a>
+  <a href="05-flujos.html">Flujos de negocio</a>
+  <a href="06-grupos.html">Modelo de grupos</a>
+  <a href="07-integraciones.html">Integraciones externas</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html" class="active">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-dashboard.html">Dashboard</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-stack.html">Stack &amp; Deploy</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">08 · Persistencia</h2>
+  <h3 class="title">Modelo de datos</h3>
+  <p class="sub">9 tablas. Postgres en producción (Railway), SQLite en local — un adaptador (<code>shared/_pgconn.py</code>) envuelve <code>asyncpg</code> con interfaz compatible con <code>aiosqlite</code>, así el mismo código de aplicación corre sobre ambos motores.</p>
+
+  <h4 style="font-size:17px;margin:0 0 12px">Relaciones principales</h4>
+  <div class="diagram" style="padding:24px">
+    <div class="erline"><span class="badge b-em">job_group</span> <span class="pk">PK group_key</span> <span style="color:var(--ink-dim)">— 1 grupo = 1 rol HiPeople = la unidad de trabajo</span></div>
+    <div class="erline" style="padding-left:24px">↑ <span class="fk">group_key</span> &nbsp; <span class="badge b-blue">job_mapping</span> <span class="pk">PK jazzhr_id</span> <span style="color:var(--ink-dim)">— N vacantes JazzHR por grupo (1 por país)</span></div>
+    <div class="erline" style="padding-left:24px">↑ <span class="fk">jazzhr_job_id</span> &nbsp; <span class="badge b-blue">applicant_mapping</span> <span class="pk">PK jazzhr_id</span> <span style="color:var(--ink-dim)">— candidato + todo su ciclo de vida</span></div>
+    <div class="erline"><span class="badge b-violet">rf_native_applicants</span> <span class="pk">PK (rf_candidate_id, group_key)</span> <span style="color:var(--ink-dim)">— candidatos nacidos en RecruiterFlow</span></div>
+    <div class="erline"><span class="badge b-amber">rf_job_mapping</span> <span class="pk">PK group_key</span> <span style="color:var(--ink-dim)">— mapeo grupo → job RF + cache de stages</span></div>
+    <div class="erline"><span class="badge b-gray">sync_events</span> · <span class="badge b-gray">settings</span> · <span class="badge b-gray">sync_state</span> · <span class="badge b-gray">users</span> <span style="color:var(--ink-dim)">— audit log, KV editable, cursores, auth</span></div>
+  </div>
+
+  <h4 style="font-size:17px;margin:24px 0 12px">Catálogo de tablas</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Tabla</th><th>PK</th><th>Propósito</th></tr></thead>
+    <tbody>
+      <tr><td><code>job_group</code></td><td><span class="pk">group_key</span></td><td>1 fila por grupo. Contiene <code>hipeople_id</code>, <code>sync_status</code>, <code>creation_decision</code>, <code>first_invite_module</code>, <code>interview_threshold</code>, <code>assessment_ready_at</code> y los controles de lifecycle (<code>invite_hold</code>, <code>paused_at</code>…).</td></tr>
+      <tr><td><code>job_mapping</code></td><td><span class="pk">jazzhr_id</span></td><td>1 fila por vacante JazzHR. N filas → 1 grupo vía <code>group_key</code>. <code>country</code> distingue vacantes del mismo grupo.</td></tr>
+      <tr><td><code>applicant_mapping</code></td><td><span class="pk">jazzhr_id</span></td><td>1 fila por prospecto JazzHR. Aloja <em>todo</em> el estado del candidato: scores de entrevista/assessment, <code>invited_module</code>, <code>manual_rating</code>, <code>rf_candidate_id</code>, <code>rf_last_stage</code>, <code>hipeople_candidate_hashid</code>…</td></tr>
+      <tr><td><code>rf_native_applicants</code></td><td><span class="pk">(rf_candidate_id, group_key)</span></td><td>Candidatos que nacen en RF (stage "Applied"). Mismo ciclo de vida, PK compuesto: un candidato puede aplicar a N jobs (=N grupos) y hay que invitarlo a todos.</td></tr>
+      <tr><td><code>rf_job_mapping</code></td><td><span class="pk">group_key</span></td><td>1 fila por grupo sincronizado en RF. Guarda <code>rf_job_id</code>, <code>stages_json</code> (cache nombre→id) y <code>stage_map_json</code> (override por grupo).</td></tr>
+      <tr><td><code>sync_events</code></td><td><span class="pk">id (serial)</span></td><td>Audit log append-only. <code>entity</code> / <code>entity_id</code> / <code>action</code> / <code>details</code> / <code>ts</code>. La herramienta de debug por excelencia.</td></tr>
+      <tr><td><code>settings</code></td><td><span class="pk">key</span></td><td>KV editable desde el dashboard (ej. <code>interview_promote_threshold</code>).</td></tr>
+      <tr><td><code>sync_state</code></td><td><span class="pk">key</span></td><td>Cursores operacionales (<code>last_poll_at</code>, <code>last_poll_stats</code>…) y credenciales runtime cacheadas.</td></tr>
+      <tr><td><code>users</code></td><td><span class="pk">id (uuid)</span></td><td>Auth del dashboard. <code>password_hash</code> bcrypt (cost 12), <code>role</code> ∈ {owner, admin, viewer}.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:17px;margin:24px 0 12px">Ciclo de vida de <code>sync_status</code></h4>
+  <div class="pipe" style="margin-bottom:16px">
+    <div class="stage"><div class="st" style="color:var(--blue)">pending</div><div class="rf">descubierto, sin procesar</div></div>
+    <div class="stage"><div class="st" style="color:var(--em-2)">synced</div><div class="rf">creado en HiPeople</div></div>
+    <div class="stage"><div class="st" style="color:var(--amber)">failed</div><div class="rf">error transitorio → retry</div></div>
+    <div class="stage"><div class="st" style="color:var(--ink-dim)">skipped</div><div class="rf">terminal: no se procesa</div></div>
+  </div>
+
+  <p><strong>Detalle de implementación.</strong> Todos los timestamps se guardan como <code>TEXT</code> en ISO-8601 (herencia de SQLite, minimiza el diff entre motores) y se castean a <code>timestamptz</code> en las queries Postgres. El esquema (<code>shared/schema.sql</code>) <strong>se aplica externamente</strong> — el runtime nunca hace DDL on-the-fly; los cambios van con migraciones numeradas en <code>scripts/migrations/postgres/</code>.</p>
+</section>
+
+<nav class="pagenav">
+  <a href="07-integraciones.html">← Integraciones externas</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="09-api.html">API REST →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

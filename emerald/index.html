@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emerald — Documentación Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<!-- ============ SIDEBAR ============ -->
+<nav class="toc">
+  <div class="brand"><div><b>Emerald</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+
+  <div class="group-label">El sistema</div>
+  <a href="04-componentes.html">Componentes</a>
+  <a href="05-flujos.html">Flujos de negocio</a>
+  <a href="06-grupos.html">Modelo de grupos</a>
+  <a href="07-integraciones.html">Integraciones externas</a>
+
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-dashboard.html">Dashboard</a>
+
+  <div class="group-label">Infraestructura</div>
+  <a href="11-stack.html">Stack &amp; Deploy</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-operacion.html">Operación</a>
+</nav>
+
+<!-- ============ MAIN ============ -->
+<main>
+
+<header class="hero">
+  <span class="eyebrow"><span class="dot" style="width:7px;height:7px;border-radius:50%;background:var(--em)"></span> Sistema de automatización ATS</span>
+  <h1>Emerald</h1>
+  <p class="lead">Orquestador de reclutamiento que conecta <b style="color:#fff">JazzHR</b>, <b style="color:#fff">HiPeople</b> y <b style="color:#fff">RecruiterFlow</b> en un pipeline automatizado: descubre candidatos, los entrevista con IA, los promueve por puntaje y mantiene un único tablero central de stages.</p>
+  <div class="meta">
+    <span class="chip"><span class="dot"></span> <b>5</b> servicios backend</span>
+    <span class="chip"><span class="dot"></span> Python <b>3.11+</b> · FastAPI</span>
+    <span class="chip"><span class="dot"></span> React <b>18</b> · Vite · Tailwind</span>
+    <span class="chip"><span class="dot"></span> Postgres <b>(Railway)</b></span>
+    <span class="chip"><span class="dot"></span> Playwright <b>headless</b></span>
+  </div>
+</header>
+
+<section>
+  <h2 class="sec">Índice</h2>
+  <h3 class="title">Contenido de la documentación</h3>
+  <p class="sub">Trece secciones que cubren el sistema de principio a fin. Recórrelas en orden o salta a la que necesites.</p>
+
+  <div class="group-label" style="margin:0 0 12px">Visión general</div>
+  <div class="grid g3" style="margin-bottom:24px">
+    <a class="card idx-card" href="01-resumen.html"><span class="idx-n">01</span><p class="idx-t">Resumen ejecutivo</p><p class="idx-d">Qué problema resuelve el sistema y cómo lo hace.</p></a>
+    <a class="card idx-card" href="02-glosario.html"><span class="idx-n">02</span><p class="idx-t">Glosario</p><p class="idx-d">Cinco términos que aparecen en todo el documento.</p></a>
+    <a class="card idx-card" href="03-arquitectura.html"><span class="idx-n">03</span><p class="idx-t">Arquitectura</p><p class="idx-d">Cinco servicios desacoplados sobre una base de datos compartida.</p></a>
+  </div>
+
+  <div class="group-label" style="margin:0 0 12px">El sistema</div>
+  <div class="grid g2" style="margin-bottom:24px">
+    <a class="card idx-card" href="04-componentes.html"><span class="idx-n">04</span><p class="idx-t">Componentes</p><p class="idx-d">Anatomía de cada worker: poller, sender, promoter, rf-sync.</p></a>
+    <a class="card idx-card" href="05-flujos.html"><span class="idx-n">05</span><p class="idx-t">Flujos de negocio</p><p class="idx-d">Los dos flujos de invitación y la calificación manual 1–4.</p></a>
+    <a class="card idx-card" href="06-grupos.html"><span class="idx-n">06</span><p class="idx-t">Modelo de grupos</p><p class="idx-d">N vacantes de JazzHR consolidadas en un único rol de HiPeople.</p></a>
+    <a class="card idx-card" href="07-integraciones.html"><span class="idx-n">07</span><p class="idx-t">Integraciones externas</p><p class="idx-d">Cómo habla Emerald con JazzHR, HiPeople y RecruiterFlow.</p></a>
+  </div>
+
+  <div class="group-label" style="margin:0 0 12px">Datos &amp; API</div>
+  <div class="grid g3" style="margin-bottom:24px">
+    <a class="card idx-card" href="08-base-datos.html"><span class="idx-n">08</span><p class="idx-t">Base de datos</p><p class="idx-d">Modelo de 9 tablas en Postgres / SQLite.</p></a>
+    <a class="card idx-card" href="09-api.html"><span class="idx-n">09</span><p class="idx-t">API REST</p><p class="idx-d">Endpoints públicos y routers del dashboard protegidos por JWT.</p></a>
+    <a class="card idx-card" href="10-dashboard.html"><span class="idx-n">10</span><p class="idx-t">Dashboard</p><p class="idx-d">SPA React/Vite/Tailwind desplegada en Vercel.</p></a>
+  </div>
+
+  <div class="group-label" style="margin:0 0 12px">Infraestructura</div>
+  <div class="grid g3">
+    <a class="card idx-card" href="11-stack.html"><span class="idx-n">11</span><p class="idx-t">Stack &amp; Deploy</p><p class="idx-d">Contenedores Docker, Railway y Vercel.</p></a>
+    <a class="card idx-card" href="12-seguridad.html"><span class="idx-n">12</span><p class="idx-t">Seguridad</p><p class="idx-d">Autenticación del dashboard y superficies sensibles.</p></a>
+    <a class="card idx-card" href="13-operacion.html"><span class="idx-n">13</span><p class="idx-t">Operación</p><p class="idx-d">Alta de un grupo nuevo y puntos delicados de operación.</p></a>
+  </div>
+</section>
+
+<nav class="pagenav">
+  <span class="spacer"></span>
+  <a href="01-resumen.html">Empezar: Resumen ejecutivo →</a>
+</nav>
+
+<div class="footer">
+  <p><b>Emerald</b> — Documentación técnica generada a partir del análisis del código fuente, el esquema de base de datos y la documentación interna del proyecto.</p>
+</div>
+
+</main>
+</div>
+</body>
+</html>

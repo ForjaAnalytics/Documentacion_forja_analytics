@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glosario — Emerald Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Emerald</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html" class="active">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-componentes.html">Componentes</a>
+  <a href="05-flujos.html">Flujos de negocio</a>
+  <a href="06-grupos.html">Modelo de grupos</a>
+  <a href="07-integraciones.html">Integraciones externas</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-dashboard.html">Dashboard</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-stack.html">Stack &amp; Deploy</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">02 · Vocabulario</h2>
+  <h3 class="title">Glosario rápido</h3>
+  <p class="sub">Cinco términos que aparecen en todo el documento. Si entiendes estos, entiendes el sistema.</p>
+
+  <div class="grid g2">
+    <div class="card"><h4><span class="badge b-blue">Plataforma</span> JazzHR</h4><p>El ATS de origen. Es donde el cliente publica vacantes y donde aplican los candidatos. Emerald lo consume <strong>solo en modo lectura</strong> vía su API REST.</p></div>
+    <div class="card"><h4><span class="badge b-blue">Plataforma</span> HiPeople</h4><p>Herramienta de <em>screening</em> con IA: entrevistas por voz y assessments. No tiene API de escritura usable, así que Emerald la opera con un <strong>bot de navegador (Playwright)</strong>.</p></div>
+    <div class="card"><h4><span class="badge b-blue">Plataforma</span> RecruiterFlow</h4><p>El pipeline central donde el equipo de reclutamiento ve y decide. Emerald lo mantiene actualizado moviendo candidatos de <em>stage</em> según los hitos del proceso.</p></div>
+    <div class="card"><h4><span class="badge b-em">Concepto</span> Grupo (<code>job_group</code>)</h4><p>N vacantes de JazzHR con el mismo título (ej. "CSR" en 11 países) se consolidan en <strong>un único rol de HiPeople</strong>. El grupo es la unidad de trabajo del sistema.</p></div>
+    <div class="card"><h4><span class="badge b-em">Concepto</span> Flow (<code>first_invite_module</code>)</h4><p>Cómo se invita por primera vez a un candidato: <code>voice_screening</code> (entrevista IA primero, default) o <code>assessment</code> (assessment directo, legacy). Se define <strong>por grupo</strong>.</p></div>
+    <div class="card"><h4><span class="badge b-violet">Concepto</span> RF-native</h4><p>Candidato que nace directamente en RecruiterFlow (stage "Applied") sin pasar por JazzHR. Tiene su propia tabla y el mismo ciclo de vida que el resto.</p></div>
+  </div>
+</section>
+
+<nav class="pagenav">
+  <a href="01-resumen.html">← Resumen ejecutivo</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="03-arquitectura.html">Arquitectura →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

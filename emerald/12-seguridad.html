@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seguridad — Emerald Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Emerald</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-componentes.html">Componentes</a>
+  <a href="05-flujos.html">Flujos de negocio</a>
+  <a href="06-grupos.html">Modelo de grupos</a>
+  <a href="07-integraciones.html">Integraciones externas</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-dashboard.html">Dashboard</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-stack.html">Stack &amp; Deploy</a>
+  <a href="12-seguridad.html" class="active">Seguridad</a>
+  <a href="13-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">12 · Seguridad</h2>
+  <h3 class="title">Autenticación &amp; superficies sensibles</h3>
+  <p class="sub">El dashboard tiene auth propia; las integraciones se protegen por diseño defensivo.</p>
+
+  <div class="grid g3">
+    <div class="card"><h4>Auth del dashboard</h4><p style="font-size:13.5px">bcrypt (cost 12) + JWT HS256 en cookie httpOnly <code>emerald_session</code> (TTL 24h). Roles owner / admin / viewer. El frontend nunca lee el token.</p></div>
+    <div class="card"><h4>JazzHR read-only</h4><p style="font-size:13.5px">El cliente rechaza todo método ≠ GET cuando <code>JAZZHR_READ_ONLY=true</code> — imposible mutar accidentalmente el ATS de producción del cliente.</p></div>
+    <div class="card"><h4>Autorización de workers</h4><p style="font-size:13.5px">Vive en la DB, no en env vars: un worker solo actúa sobre grupos con <code>creation_decision='approved'</code> + <code>sync_status='synced'</code>. El admin aprueba desde el dashboard.</p></div>
+  </div>
+
+  <p><strong>Secretos del entorno.</strong> El archivo <code>.env</code> contiene las credenciales reales (API keys de JazzHR / HiPeople / RecruiterFlow, passwords, JWT secret) y <code>data/*.json</code> contiene las cookies de sesión activas. Ambos están excluidos del repositorio mediante <code>.gitignore</code> y existen únicamente en el filesystem local del entorno de ejecución; se tratan como secretos y no se incluyen al compartir o respaldar el proyecto.</p>
+
+  <p><strong>Env vars sin uso.</strong> Por la evolución del sistema en fases, hay variables que siguen presentes en Railway pero que el código ignora: <code>EMERALD_RF_DRY_RUN</code>, <code>EMERALD_*_ALLOWED_GROUPS</code>, <code>EMERALD_BOT_ALLOW_PRODUCTION</code>, <code>EMERALD_OPEN_GROUPS</code>, <code>EMERALD_TEST_USER_EMAILS</code>. La lógica real de autorización es la decisión por grupo almacenada en la base de datos.</p>
+</section>
+
+<nav class="pagenav">
+  <a href="11-stack.html">← Stack &amp; Deploy</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="13-operacion.html">Operación →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

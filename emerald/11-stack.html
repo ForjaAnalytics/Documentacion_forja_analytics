@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stack &amp; Deploy — Emerald Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Emerald</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-componentes.html">Componentes</a>
+  <a href="05-flujos.html">Flujos de negocio</a>
+  <a href="06-grupos.html">Modelo de grupos</a>
+  <a href="07-integraciones.html">Integraciones externas</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-dashboard.html">Dashboard</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-stack.html" class="active">Stack &amp; Deploy</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">11 · Infraestructura</h2>
+  <h3 class="title">Stack &amp; deployment</h3>
+  <p class="sub">Contenedores Docker sobre una imagen base de Playwright. Producción en Railway; frontend en Vercel; sin remote de GitHub.</p>
+
+  <div class="grid g2">
+    <div class="card"><h4>Backend</h4>
+      <p style="font-size:13.5px">Python 3.11+ · FastAPI · Uvicorn · httpx (async) · asyncpg / aiosqlite · Playwright · BeautifulSoup + markdownify (HTML→MD) · bcrypt + PyJWT.</p>
+      <p style="font-size:13px;color:var(--ink-dim)">Imagen base: <code>mcr.microsoft.com/playwright/python:v1.47.0-jammy</code> — los 5 servicios comparten layers.</p>
+    </div>
+    <div class="card"><h4>Frontend</h4>
+      <p style="font-size:13.5px">React 18 · TypeScript 5 · Vite 5 · TailwindCSS 3 · Recharts · framer-motion · lucide-react.</p>
+      <p style="font-size:13px;color:var(--ink-dim)">Build: <code>tsc -b &amp;&amp; vite build</code> → Vercel.</p>
+    </div>
+  </div>
+
+  <p><strong>Modelo de deploy.</strong> No hay GitHub remote. Se despliega con <code>railway up --service &lt;nombre&gt;</code>, que sube <em>todo el working tree local</em> (respetando <code>.railwayignore</code>). Los archivos sin commitear en local son los que corren en producción — el workflow es deployar sin commit hasta alcanzar un milestone. El <code>.env</code> nunca va al repo.</p>
+
+  <h4 style="font-size:16px;margin:22px 0 10px">Entornos</h4>
+  <div class="tw"><table>
+    <thead><tr><th></th><th>Local (dev)</th><th>Producción</th></tr></thead>
+    <tbody>
+      <tr><td><b>Orquestación</b></td><td>docker-compose (5 servicios)</td><td>Railway (5 servicios)</td></tr>
+      <tr><td><b>Base de datos</b></td><td>SQLite (WAL) en <code>data/emerald.db</code></td><td>Railway Postgres (<code>DATABASE_URL</code>)</td></tr>
+      <tr><td><b>Frontend</b></td><td>vite dev</td><td>Vercel</td></tr>
+      <tr><td><b>Sesiones bot</b></td><td>archivos en <code>./data</code></td><td>env vars base64 → bootstrap container</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<nav class="pagenav">
+  <a href="10-dashboard.html">← Dashboard</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="12-seguridad.html">Seguridad →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>
