@@ -78,8 +78,8 @@ resp = client.messages.create(
 )</pre>
   <p>El schema se marca con <code>cache_control: ephemeral</code> (<em>prompt caching</em>): consultas consecutivas dentro de ~5 minutos no vuelven a pagar los tokens del schema, que es la parte grande y estable del prompt.</p>
 
-  <h4 style="font-size:16px;margin:26px 0 12px">El esquema base de cuidados paliativos</h4>
-  <p>El <code>DEFAULT_CAPTURE_CONFIG</code> fue curado por la <strong>Dra. María Alejandra Umbacía</strong> y cubre la valoración integral. Sus secciones:</p>
+  <h4 style="font-size:16px;margin:26px 0 12px">La plantilla por defecto: cuidados paliativos</h4>
+  <p>El sistema es agnóstico de la especialidad —cada médico modela sus propios campos—, pero <strong>de fábrica</strong> trae una plantilla lista para empezar. Ese <code>DEFAULT_CAPTURE_CONFIG</code> fue curado por la <strong>Dra. María Alejandra Umbacía</strong> para cuidados paliativos y cubre la valoración integral. Cualquier doctor puede adaptarlo o reemplazarlo por completo. Sus secciones:</p>
   <div class="grid g2">
     <div class="card"><h4>General</h4><p>Datos demográficos y de contexto: nombre, edad, lugar de nacimiento y de vivienda, ocupación, escolaridad, con quién vive, número de hijos, teléfono, dirección, correo, acompañante en la consulta.</p></div>
     <div class="card"><h4>Motivo de consulta</h4><p>El motivo principal por el que se valora al paciente.</p></div>

@@ -36,43 +36,113 @@
 <section>
   <h2 class="sec">03 · Visión general</h2>
   <h3 class="title">Vista de sistema</h3>
-  <p class="sub">Dos aplicaciones desplegadas por separado —un SPA de React y una API FastAPI— que se comunican por HTTP+JSON, sobre una base de datos Postgres y tres servicios externos de nube/IA.</p>
+  <p class="sub">Dos aplicaciones desplegadas por separado —un SPA de React y una API FastAPI— sobre una base de datos Postgres y tres servicios externos de nube/IA. El diagrama va de arriba (cliente) hacia abajo (datos y servicios), siguiendo el camino de una petición.</p>
+
+  <div class="legend" style="margin:0 0 16px">
+    <span><span class="dotc" style="background:var(--amber)"></span> Cliente / UI</span>
+    <span><span class="dotc" style="background:var(--em)"></span> Backend · FastAPI</span>
+    <span><span class="dotc" style="background:var(--violet)"></span> Persistencia</span>
+    <span><span class="dotc" style="background:var(--blue)"></span> Servicios externos</span>
+  </div>
 
   <div class="diagram">
+
+    <!-- ===== Cliente ===== -->
     <div class="layer">
-      <div class="layer-label">Capa de presentación</div>
+      <div class="layer-label">Cliente · navegador del médico <span style="color:var(--ink-dim);font-weight:500;text-transform:none;letter-spacing:0">— SPA en Vercel</span></div>
       <div class="row">
-        <div class="node ui"><span class="tag">Vercel</span><div class="nh"><span class="dotc"></span> Dashboard React</div><div class="nd">SPA Vite/React/Tailwind. Estado con Zustand. Consume <code>/api/*</code> con un JWT en el header <code>Authorization</code>.</div></div>
+        <div class="node ui"><span class="tag">React · Vite</span><div class="nh"><span class="dotc"></span> UI &amp; rutas</div><div class="nd">Páginas del doctor y sub-app de plataforma. React Router con lazy + guards.</div></div>
+        <div class="node ui"><span class="tag">Zustand</span><div class="nh"><span class="dotc"></span> Store</div><div class="nd">Estado de auth, consulta y cola de rondas. Persiste token y perfil en <code>localStorage</code>.</div></div>
+        <div class="node ui"><span class="tag">MediaRecorder</span><div class="nh"><span class="dotc"></span> Captura de audio</div><div class="nd">Graba la consulta (WebM/Opus) con visualizador de onda.</div></div>
+        <div class="node ui"><span class="tag">lib/api.js</span><div class="nh"><span class="dotc"></span> Cliente HTTP</div><div class="nd">Inyecta el JWT, maneja 401 y centraliza <code>api</code> / <code>accountApi</code> / <code>adminApi</code>.</div></div>
       </div>
     </div>
-    <div class="flowarrow">↑ ↓ HTTP + JSON</div>
+
+    <div class="flowarrow">↓ &nbsp;<span style="font-size:11.5px;color:var(--ink-dim);font-family:var(--mono)">Authorization: Bearer · HTTPS + JSON</span>&nbsp; ↑</div>
+
+    <!-- ===== Borde de la API ===== -->
     <div class="layer">
-      <div class="layer-label">Backend — FastAPI (Railway)</div>
+      <div class="layer-label">Borde de la API · FastAPI (Railway)</div>
       <div class="row">
-        <div class="node wrk"><span class="tag">routers</span><div class="nh"><span class="dotc"></span> API REST</div><div class="nd">auth · uploads · consultations · patients · users · account · admin.</div></div>
-        <div class="node wrk"><span class="tag">BackgroundTask</span><div class="nh"><span class="dotc"></span> Pipeline</div><div class="nd">Orquesta transcripción + extracción tras crear la consulta. Actualiza <code>status</code> en DB.</div></div>
-        <div class="node wrk"><span class="tag">services</span><div class="nh"><span class="dotc"></span> Integraciones</div><div class="nd"><code>drive</code> · <code>audio</code> · <code>transcribe</code> · <code>extract</code>.</div></div>
+        <div class="node wrk"><span class="tag">middleware</span><div class="nh"><span class="dotc"></span> CORS</div><div class="nd">Restringe orígenes a <code>CORS_ORIGINS</code>.</div></div>
+        <div class="node wrk"><span class="tag">deps</span><div class="nh"><span class="dotc"></span> JWT · HTTPBearer</div><div class="nd"><code>get_current_user</code> resuelve usuario y rol; <code>require_*</code> aplica permisos.</div></div>
+        <div class="node wrk"><span class="tag">pydantic</span><div class="nh"><span class="dotc"></span> Validación</div><div class="nd">Schemas de entrada/salida por endpoint.</div></div>
       </div>
     </div>
-    <div class="flowarrow">↑ ↓</div>
+
+    <div class="flowarrow">↓</div>
+
+    <!-- ===== Routers ===== -->
+    <div class="layer">
+      <div class="layer-label">Routers REST <span style="color:var(--ink-dim);font-weight:500;text-transform:none;letter-spacing:0">— bajo <code>/api/*</code></span></div>
+      <div class="row">
+        <div class="node wrk"><span class="tag">público</span><div class="nh"><span class="dotc"></span> auth</div><div class="nd">register · login · me · invitaciones.</div></div>
+        <div class="node wrk"><span class="tag">JWT</span><div class="nh"><span class="dotc"></span> uploads</div><div class="nd">Inicia la sesión resumable de Drive.</div></div>
+        <div class="node wrk"><span class="tag">JWT</span><div class="nh"><span class="dotc"></span> consultations</div><div class="nd">Crea la consulta y dispara el pipeline.</div></div>
+        <div class="node wrk"><span class="tag">JWT</span><div class="nh"><span class="dotc"></span> patients · me</div><div class="nd">Pacientes y <code>capture-config</code>.</div></div>
+        <div class="node wrk"><span class="tag">owner / admin</span><div class="nh"><span class="dotc"></span> account · admin</div><div class="nd">Gestión de account y de plataforma.</div></div>
+      </div>
+    </div>
+
+    <div class="flowarrow">↓ &nbsp;<span style="font-size:11.5px;color:var(--ink-dim);font-family:var(--mono)">BackgroundTask (tras responder al cliente)</span></div>
+
+    <!-- ===== Procesamiento asíncrono ===== -->
+    <div class="layer">
+      <div class="layer-label">Procesamiento asíncrono · services</div>
+      <div class="row">
+        <div class="node wrk"><span class="tag">pipeline</span><div class="nh"><span class="dotc"></span> Orquestador</div><div class="nd"><code>pipeline.run()</code>: encadena los pasos y va escribiendo <code>status</code> en DB.</div></div>
+        <div class="node wrk"><span class="tag">drive</span><div class="nh"><span class="dotc"></span> download_file</div><div class="nd">Baja el audio desde Drive.</div></div>
+        <div class="node wrk"><span class="tag">audio · ffmpeg</span><div class="nh"><span class="dotc"></span> normalize_for_stt</div><div class="nd">Quita silencio; FLAC 16 kHz mono.</div></div>
+        <div class="node wrk"><span class="tag">transcribe</span><div class="nh"><span class="dotc"></span> Scribe + diálogo</div><div class="nd">Transcribe y arma turnos por hablante.</div></div>
+        <div class="node wrk"><span class="tag">extract</span><div class="nh"><span class="dotc"></span> Claude tool use</div><div class="nd">Schema dinámico desde <code>capture_config</code>.</div></div>
+      </div>
+    </div>
+
+    <div class="flowarrow">↓ &nbsp;<span style="font-size:11.5px;color:var(--ink-dim);font-family:var(--mono)">SQLAlchemy</span>&nbsp; ↑</div>
+
+    <!-- ===== Persistencia ===== -->
     <div class="layer">
       <div class="layer-label">Estado compartido</div>
       <div class="row">
-        <div class="node state"><span class="tag">SQLAlchemy</span><div class="nh"><span class="dotc"></span> PostgreSQL</div><div class="nd">Accounts, users, patients, consultations, invitations. <code>transcript</code>, <code>extraction</code> y <code>capture_config</code> en columnas JSONB.</div></div>
+        <div class="node state"><span class="tag">Railway</span><div class="nh"><span class="dotc"></span> PostgreSQL</div><div class="nd">accounts · users · patients · consultations · invitations. <code>transcript</code>, <code>extraction</code> y <code>capture_config</code> en columnas JSONB.</div></div>
+        <div class="node state"><span class="tag">migraciones</span><div class="nh"><span class="dotc"></span> Alembic</div><div class="nd">Esquema versionado (<code>upgrade head</code> al boot). No se usa <code>create_all</code>.</div></div>
       </div>
     </div>
-    <div class="flowarrow">↑ ↓</div>
+
+    <div class="flowarrow">↕ &nbsp;<span style="font-size:11.5px;color:var(--ink-dim);font-family:var(--mono)">service account · httpx · SDK anthropic</span></div>
+
+    <!-- ===== Servicios externos ===== -->
     <div class="layer">
-      <div class="layer-label">Servicios externos</div>
+      <div class="layer-label">Servicios externos / nube</div>
       <div class="row">
-        <div class="node ext"><span class="tag">Service Account</span><div class="nh"><span class="dotc"></span> Google Drive</div><div class="nd">Almacena los audios. Subida resumable directa desde el navegador.</div></div>
-        <div class="node ext"><span class="tag">REST · STT</span><div class="nh"><span class="dotc"></span> ElevenLabs Scribe</div><div class="nd">Audio → texto con diarización (ES-CO).</div></div>
-        <div class="node ext"><span class="tag">SDK · tool use</span><div class="nh"><span class="dotc"></span> Anthropic Claude</div><div class="nd">Transcripción → datos estructurados.</div></div>
+        <div class="node ext"><span class="tag">PUT directo + descarga</span><div class="nh"><span class="dotc"></span> Google Drive</div><div class="nd">Shared Drive vía service account. El navegador sube el blob; el backend lo descarga para procesarlo.</div></div>
+        <div class="node ext"><span class="tag">REST · STT</span><div class="nh"><span class="dotc"></span> ElevenLabs Scribe</div><div class="nd">Audio → texto con diarización (ES-CO), timestamps por palabra.</div></div>
+        <div class="node ext"><span class="tag">tool use + caching</span><div class="nh"><span class="dotc"></span> Anthropic Claude</div><div class="nd">Transcripción → datos estructurados con herramienta forzada.</div></div>
       </div>
     </div>
+
   </div>
 
-  <p><strong>Principio de diseño.</strong> El audio <strong>no atraviesa el backend</strong>: el navegador sube el blob directo a Drive con una sesión resumable que el backend solo inicia (ver <a href="11-integraciones.html">Integraciones</a>). El backend luego descarga ese archivo para procesarlo. El trabajo pesado —transcripción y extracción— corre como <strong>BackgroundTask</strong> de FastAPI tras responder al cliente, así que la petición de crear la consulta vuelve de inmediato y el frontend hace <em>polling</em> del estado.</p>
+  <h4 style="font-size:18px;margin:30px 0 12px">Flujo de una consulta, de extremo a extremo</h4>
+  <p>Dónde vive cada dato y qué componente lo mueve, paso a paso:</p>
+  <div class="tline">
+    <div class="ev"><span class="d">navegador → Drive</span><br><b>1 · Captura y subida</b><br>El SPA graba el audio y pide <code>POST /api/uploads/init</code>. El backend abre una sesión resumable y devuelve una <code>session_uri</code>; el navegador hace el <code>PUT</code> del blob <strong>directo a Drive</strong>. El audio nunca atraviesa el backend.</div>
+    <div class="ev"><span class="d">navegador → API → DB</span><br><b>2 · Creación de la consulta</b><br>Con el <code>drive_file_id</code>, el SPA llama <code>POST /api/consultations</code>. El backend persiste la fila en <code>queued</code>, <strong>responde de inmediato</strong> y agenda <code>pipeline.run()</code> como <code>BackgroundTask</code>.</div>
+    <div class="ev"><span class="d">pipeline (async)</span><br><b>3 · Transcripción</b><br>El pipeline baja el audio (<code>drive.download_file</code>), lo normaliza con ffmpeg y lo envía a ElevenLabs Scribe. El <code>transcript</code> se guarda en la fila (estado <code>transcribing</code>).</div>
+    <div class="ev"><span class="d">pipeline (async)</span><br><b>4 · Extracción</b><br>El transcript se reescribe como diálogo etiquetado y se pasa a Claude con un schema construido desde el <code>capture_config</code> del usuario. La <code>extraction</code> y las métricas de uso se guardan; el estado pasa a <code>ready</code> (o <code>error</code>).</div>
+    <div class="ev"><span class="d">navegador ← API</span><br><b>5 · Revisión</b><br>La pantalla de resultados hace <em>polling</em> de <code>GET /api/consultations/:id</code> hasta <code>ready</code>, muestra los campos editables y guarda los ajustes del médico con <code>PATCH</code>. El export a Word ocurre en el navegador.</div>
+  </div>
+
+  <div class="grid g2" style="margin:8px 0 6px">
+    <div class="card">
+      <h4>Principio · el audio no pasa por el backend</h4>
+      <p>La subida es resumable y directa a Drive (patrón tipo <em>presigned URL</em>): el backend solo abre la sesión. Esto evita un cuello de botella de ancho de banda y mantiene la API liviana — solo maneja JSON.</p>
+    </div>
+    <div class="card">
+      <h4>Principio · trabajo pesado en segundo plano</h4>
+      <p>Transcribir y extraer toma segundos o minutos. Corren como <code>BackgroundTask</code> tras responder al cliente, y el avance se comunica por el campo <code>status</code> que el frontend consulta por <em>polling</em>. La consulta es la única fuente de verdad del progreso.</p>
+    </div>
+  </div>
 
   <h4 style="font-size:18px;margin:26px 0 14px">Componentes de un vistazo</h4>
   <div class="tw">
@@ -80,10 +150,12 @@
       <thead><tr><th>Componente</th><th>Tecnología</th><th>Responsabilidad</th></tr></thead>
       <tbody>
         <tr><td><span class="badge b-amber">Frontend</span></td><td class="mono-col"><code>React 18 · Vite</code></td><td>SPA: login, consentimiento, grabación, subida, resultados editables, pacientes, rondas y panel de plataforma.</td></tr>
-        <tr><td><span class="badge b-em">API</span></td><td class="mono-col"><code>FastAPI</code></td><td>Routers REST protegidos por JWT, validación con Pydantic, control de roles por dependencias.</td></tr>
-        <tr><td><span class="badge b-em">Pipeline</span></td><td class="mono-col"><code>app.services.pipeline</code></td><td>Descarga audio → normaliza → transcribe → extrae → guarda. Maneja errores y estados.</td></tr>
-        <tr><td><span class="badge b-violet">DB</span></td><td class="mono-col"><code>PostgreSQL</code></td><td>Persistencia. Migraciones con Alembic. JSONB para configuración y resultados.</td></tr>
-        <tr><td><span class="badge b-blue">Drive</span></td><td class="mono-col"><code>google-auth</code></td><td>Almacenamiento de audios mediante service account y subidas resumables.</td></tr>
+        <tr><td><span class="badge b-em">API</span></td><td class="mono-col"><code>FastAPI</code></td><td>Routers REST bajo <code>/api/*</code>, validación Pydantic, control de roles por dependencias.</td></tr>
+        <tr><td><span class="badge b-em">Auth</span></td><td class="mono-col"><code>core.security · deps</code></td><td>JWT (HS256) + bcrypt; resuelve usuario, account y permisos en cada request.</td></tr>
+        <tr><td><span class="badge b-em">Pipeline</span></td><td class="mono-col"><code>services.pipeline</code></td><td>BackgroundTask: descarga → normaliza → transcribe → extrae → guarda. Maneja estados y errores.</td></tr>
+        <tr><td><span class="badge b-em">Services</span></td><td class="mono-col"><code>drive · audio · transcribe · extract</code></td><td>Una integración por archivo; aislan cada dependencia externa del resto del código.</td></tr>
+        <tr><td><span class="badge b-violet">DB</span></td><td class="mono-col"><code>PostgreSQL · Alembic</code></td><td>Persistencia con migraciones versionadas. JSONB para configuración y resultados.</td></tr>
+        <tr><td><span class="badge b-blue">Drive</span></td><td class="mono-col"><code>google-auth</code></td><td>Almacenamiento de audios: subidas resumables y descarga por service account.</td></tr>
         <tr><td><span class="badge b-blue">Scribe</span></td><td class="mono-col"><code>httpx → ElevenLabs</code></td><td>Transcripción con timestamps y diarización por hablante.</td></tr>
         <tr><td><span class="badge b-blue">Claude</span></td><td class="mono-col"><code>anthropic SDK</code></td><td>Extracción estructurada vía <em>tool use</em> con schema dinámico.</td></tr>
       </tbody>
