@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glosario — Trustmed Assistant Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Assistant</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html" class="active">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-flujo-clinico.html">Flujo clínico</a>
+  <a href="05-pipeline-ia.html">Pipeline de IA</a>
+  <a href="06-captura-configurable.html">Captura configurable</a>
+  <a href="07-multitenant-roles.html">Multitenant y roles</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">02 · Visión general</h2>
+  <h3 class="title">Glosario</h3>
+  <p class="sub">Ocho términos que aparecen una y otra vez en el resto del documento. Si algo no te cuadra más adelante, probablemente esté definido aquí.</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <h4><span class="badge b-em">Account</span> Tenant</h4>
+      <p>La unidad de aislamiento de datos. Un <code>account</code> tiene un <strong>plan</strong>: <code>individual</code> (un único doctor = owner) o <code>business</code> (owner + miembros invitados). Todos los datos —pacientes, consultas— cuelgan de un account. Existe además un account especial <code>acc-platform</code> para el super admin.</p>
+    </div>
+    <div class="card">
+      <h4><span class="badge b-em">User / Doctor</span> Cuenta de acceso</h4>
+      <p>El médico que inicia sesión. Tiene un <code>platform_role</code> (<code>super_admin</code> o <code>none</code>) y un <code>account_role</code> (<code>owner</code> o <code>member</code>). Cada user pertenece a exactamente un account.</p>
+    </div>
+    <div class="card">
+      <h4><span class="badge b-em">Consultation</span> Consulta</h4>
+      <p>Una grabación procesada. Avanza por un ciclo de estados —<code>queued</code> → <code>transcribing</code> → <code>extracting</code> → <code>ready</code>— y guarda tanto el <code>transcript</code> como la <code>extraction</code> resultante. Su id tiene forma <code>CV-xxxxxx</code>.</p>
+    </div>
+    <div class="card">
+      <h4><span class="badge b-em">Patient</span> Paciente</h4>
+      <p>Ficha del paciente, propiedad del doctor que la creó (scoped por <code>user_id</code>). Guarda datos demográficos y de contacto, y agrupa el historial de consultas. Único por <code>(user_id, doc_id)</code>.</p>
+    </div>
+    <div class="card">
+      <h4><span class="badge b-violet">capture_config</span> Esquema de captura</h4>
+      <p>JSON que define <strong>qué campos</strong> debe extraer la IA y con qué descripción. Es por usuario (editable), y el account guarda un <code>capture_config_default</code> que se copia al crear cada doctor. Es el corazón configurable del sistema.</p>
+    </div>
+    <div class="card">
+      <h4><span class="badge b-violet">extraction</span> Datos extraídos</h4>
+      <p>El resultado que Claude devuelve: un objeto con un valor por cada campo del <code>capture_config</code>. Se guarda en la consulta y es lo que el médico edita en la pantalla de resultados.</p>
+    </div>
+    <div class="card">
+      <h4><span class="badge b-blue">Diarización</span> Separación de hablantes</h4>
+      <p>ElevenLabs Scribe etiqueta cada palabra con un <code>speaker_id</code>. El sistema asume <code>speaker_0 = MÉDICO</code> y <code>speaker_1 = PACIENTE</code> y reconstruye el diálogo turno por turno antes de pasarlo a Claude.</p>
+    </div>
+    <div class="card">
+      <h4><span class="badge b-blue">Resumable upload</span> Subida directa a Drive</h4>
+      <p>Patrón equivalente a una <em>presigned URL</em> de S3: el backend abre una sesión en Google Drive y devuelve una URL; el navegador hace el <code>PUT</code> del audio <strong>directo a Drive</strong>, sin que el archivo pase por el backend.</p>
+    </div>
+  </div>
+
+  <p style="margin-top:22px"><strong>Nota sobre nombres.</strong> El repositorio usa el nombre interno <code>Cuidarte Voice</code> (prefijos <code>cv-</code>, claves de <code>localStorage</code> como <code>cv.token</code>, logger <code>cuidarte.*</code>). En esta documentación nos referimos al producto como <strong>Trustmed Assistant</strong>; ambos nombran el mismo sistema.</p>
+</section>
+
+<nav class="pagenav">
+  <a href="01-resumen.html">← Resumen ejecutivo</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="03-arquitectura.html">Arquitectura →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

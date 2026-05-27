@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trustmed Assistant — Documentación Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<!-- ============ SIDEBAR ============ -->
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Assistant</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+
+  <div class="group-label">El sistema</div>
+  <a href="04-flujo-clinico.html">Flujo clínico</a>
+  <a href="05-pipeline-ia.html">Pipeline de IA</a>
+  <a href="06-captura-configurable.html">Captura configurable</a>
+  <a href="07-multitenant-roles.html">Multitenant y roles</a>
+
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<!-- ============ MAIN ============ -->
+<main>
+
+<header class="hero">
+  <span class="eyebrow"><span class="dot" style="width:7px;height:7px;border-radius:50%;background:var(--em)"></span> Asistente clínico con IA</span>
+  <h1>Trustmed Assistant</h1>
+  <p class="lead">Plataforma SaaS para <b style="color:var(--ink)">cuidados paliativos</b> que graba la consulta médica, la transcribe con <b style="color:var(--ink)">ElevenLabs Scribe</b>, extrae datos clínicos estructurados con <b style="color:var(--ink)">Claude</b> y devuelve una historia editable lista para exportar. Multi-tenant, con roles, cuotas y panel de administración de plataforma.</p>
+  <div class="meta">
+    <span class="chip"><span class="dot"></span> Python <b>3.11+</b> · FastAPI</span>
+    <span class="chip"><span class="dot"></span> React <b>18</b> · Vite · Tailwind</span>
+    <span class="chip"><span class="dot"></span> Postgres <b>+ SQLAlchemy</b></span>
+    <span class="chip"><span class="dot"></span> Google Drive <b>(resumable)</b></span>
+    <span class="chip"><span class="dot"></span> ElevenLabs <b>Scribe</b></span>
+    <span class="chip"><span class="dot"></span> Claude <b>tool use</b></span>
+  </div>
+</header>
+
+<section>
+  <h2 class="sec">Índice</h2>
+  <h3 class="title">Contenido de la documentación</h3>
+  <p class="sub">Catorce secciones que cubren el sistema de extremo a extremo: desde qué problema resuelve hasta cómo operarlo en producción. Recórrelas en orden o salta a la que necesites.</p>
+
+  <div class="group-label" style="margin:0 0 12px">Visión general</div>
+  <div class="grid g3" style="margin-bottom:24px">
+    <a class="card idx-card" href="01-resumen.html"><span class="idx-n">01</span><p class="idx-t">Resumen ejecutivo</p><p class="idx-d">Qué problema resuelve y cómo lo hace, en un párrafo.</p></a>
+    <a class="card idx-card" href="02-glosario.html"><span class="idx-n">02</span><p class="idx-t">Glosario</p><p class="idx-d">Los términos que aparecen en todo el documento.</p></a>
+    <a class="card idx-card" href="03-arquitectura.html"><span class="idx-n">03</span><p class="idx-t">Arquitectura</p><p class="idx-d">Frontend, backend y servicios externos en una vista.</p></a>
+  </div>
+
+  <div class="group-label" style="margin:0 0 12px">El sistema</div>
+  <div class="grid g2" style="margin-bottom:24px">
+    <a class="card idx-card" href="04-flujo-clinico.html"><span class="idx-n">04</span><p class="idx-t">Flujo clínico</p><p class="idx-d">El recorrido del médico: consentimiento → grabar → subir → resultados.</p></a>
+    <a class="card idx-card" href="05-pipeline-ia.html"><span class="idx-n">05</span><p class="idx-t">Pipeline de IA</p><p class="idx-d">Descarga → normalización → transcripción → extracción → guardado.</p></a>
+    <a class="card idx-card" href="06-captura-configurable.html"><span class="idx-n">06</span><p class="idx-t">Captura configurable</p><p class="idx-d">El <code>capture_config</code> que define qué campos extrae Claude.</p></a>
+    <a class="card idx-card" href="07-multitenant-roles.html"><span class="idx-n">07</span><p class="idx-t">Multitenant y roles</p><p class="idx-d">Accounts, planes, roles e invitaciones entre doctores.</p></a>
+  </div>
+
+  <div class="group-label" style="margin:0 0 12px">Datos &amp; API</div>
+  <div class="grid g3" style="margin-bottom:24px">
+    <a class="card idx-card" href="08-base-datos.html"><span class="idx-n">08</span><p class="idx-t">Base de datos</p><p class="idx-d">Cinco tablas en Postgres con JSONB para config y extracción.</p></a>
+    <a class="card idx-card" href="09-api.html"><span class="idx-n">09</span><p class="idx-t">API REST</p><p class="idx-d">Routers de FastAPI protegidos por JWT y control de roles.</p></a>
+    <a class="card idx-card" href="10-frontend.html"><span class="idx-n">10</span><p class="idx-t">Frontend</p><p class="idx-d">SPA React/Vite con Zustand, rutas protegidas y export a Word.</p></a>
+  </div>
+
+  <div class="group-label" style="margin:0 0 12px">Infraestructura</div>
+  <div class="grid g2">
+    <a class="card idx-card" href="11-integraciones.html"><span class="idx-n">11</span><p class="idx-t">Integraciones externas</p><p class="idx-d">Google Drive, ElevenLabs Scribe y Anthropic Claude.</p></a>
+    <a class="card idx-card" href="12-seguridad.html"><span class="idx-n">12</span><p class="idx-t">Seguridad</p><p class="idx-d">JWT, bcrypt, aislamiento por account y datos sensibles.</p></a>
+    <a class="card idx-card" href="13-stack-deploy.html"><span class="idx-n">13</span><p class="idx-t">Stack &amp; Deploy</p><p class="idx-d">Railway para el backend, Vercel para el frontend.</p></a>
+    <a class="card idx-card" href="14-operacion.html"><span class="idx-n">14</span><p class="idx-t">Operación</p><p class="idx-d">Setup local, variables de entorno y puntos delicados.</p></a>
+  </div>
+</section>
+
+<nav class="pagenav">
+  <span class="spacer"></span>
+  <a href="01-resumen.html">Empezar: Resumen ejecutivo →</a>
+</nav>
+
+<div class="footer">
+  <p><b>Trustmed Assistant</b> — Documentación técnica generada a partir del análisis del código fuente (backend FastAPI, frontend React), el esquema de base de datos y la configuración de despliegue del proyecto.</p>
+</div>
+
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Base de datos — Trustmed Assistant Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Assistant</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-flujo-clinico.html">Flujo clínico</a>
+  <a href="05-pipeline-ia.html">Pipeline de IA</a>
+  <a href="06-captura-configurable.html">Captura configurable</a>
+  <a href="07-multitenant-roles.html">Multitenant y roles</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html" class="active">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">08 · Datos &amp; API</h2>
+  <h3 class="title">Base de datos</h3>
+  <p class="sub">Cinco tablas en PostgreSQL, modeladas con SQLAlchemy 2.0. Las partes flexibles —configuración y resultados de IA— viven en columnas <code>JSONB</code>.</p>
+
+  <h4 style="font-size:16px;margin:0 0 10px">Relaciones</h4>
+  <div class="erline"><span class="badge b-em">accounts</span> 1 ──&lt; N <span class="badge b-em">users</span> 1 ──&lt; N <span class="badge b-em">patients</span> 1 ──&lt; N <span class="badge b-em">consultations</span></div>
+  <div class="erline"><span class="badge b-em">accounts</span> 1 ──&lt; N <span class="badge b-em">account_invitations</span> &nbsp;·&nbsp; <span class="badge b-gray">users / patients / consultations</span> referencian <span class="pk">account_id</span> para el aislamiento por tenant</div>
+
+  <div class="diagram" style="margin-top:16px">
+    <div class="layer"><div class="layer-label">Tenant</div><div class="row">
+      <div class="node wrk"><span class="tag">PK str</span><div class="nh"><span class="dotc"></span> accounts</div><div class="nd">plan, status, cuotas, <code>capture_config_default</code> (JSONB), <code>drive_folder_id</code>, Stripe.</div></div>
+      <div class="node wrk"><span class="tag">PK str</span><div class="nh"><span class="dotc"></span> account_invitations</div><div class="nd">token, email, expires_at, accepted_at.</div></div>
+    </div></div>
+    <div class="flowarrow">↓</div>
+    <div class="layer"><div class="layer-label">Identidad</div><div class="row">
+      <div class="node state"><span class="tag">PK str</span><div class="nh"><span class="dotc"></span> users</div><div class="nd">email único, password_hash, roles, <code>capture_config</code> (JSONB), <code>drive_folder_id</code>.</div></div>
+    </div></div>
+    <div class="flowarrow">↓</div>
+    <div class="layer"><div class="layer-label">Clínico</div><div class="row">
+      <div class="node ui"><span class="tag">PK str</span><div class="nh"><span class="dotc"></span> patients</div><div class="nd">demográficos + contacto. Único por <code>(user_id, doc_id)</code>.</div></div>
+      <div class="node ui"><span class="tag">PK str</span><div class="nh"><span class="dotc"></span> consultations</div><div class="nd">status, drive_file_id, <code>transcript</code> + <code>extraction</code> (JSONB), métricas de uso.</div></div>
+    </div></div>
+  </div>
+
+  <h4 style="font-size:16px;margin:26px 0 10px">Tablas en detalle</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Tabla</th><th>Columnas destacadas</th><th>Notas</th></tr></thead>
+    <tbody>
+      <tr><td><code>accounts</code></td><td><code>plan</code>, <code>status</code>, <code>max_users</code>, <code>max_consultations_per_month</code>, <code>trial_ends_at</code>, <code>capture_config_default</code>, <code>drive_folder_id</code>, <code>stripe_*</code></td><td><code>CHECK</code> en plan (individual/business) y status (trial/active/suspended/cancelled).</td></tr>
+      <tr><td><code>users</code></td><td><code>email</code> (único), <code>password_hash</code>, <code>account_id</code>, <code>platform_role</code>, <code>account_role</code>, <code>status</code>, <code>capture_config</code>, <code>drive_folder_id</code></td><td><code>CHECK</code> en cada rol y status. <code>capture_config</code> es el override per-user.</td></tr>
+      <tr><td><code>patients</code></td><td><code>user_id</code>, <code>account_id</code>, <code>full_name</code>, <code>doc_id</code>, <code>room</code>, <code>age</code>, <code>sex</code>, <code>phone</code>, <code>email</code>, <code>notes</code></td><td><code>UNIQUE(user_id, doc_id)</code>: cada doctor no repite documento.</td></tr>
+      <tr><td><code>consultations</code></td><td><code>user_id</code>, <code>account_id</code>, <code>patient_id?</code>, <code>consult_type</code>, <code>status</code>, <code>drive_file_id</code>, <code>transcript</code>, <code>extraction</code>, <code>error</code>, <code>tokens_input/output</code>, <code>transcription_seconds</code>, <code>model_used</code>, <code>ready_at</code></td><td><code>patient_id</code> es opcional y se anula (no borra) si se elimina el paciente.</td></tr>
+      <tr><td><code>account_invitations</code></td><td><code>account_id</code>, <code>email</code>, <code>token</code> (único), <code>invited_by_user_id</code>, <code>expires_at</code>, <code>accepted_at</code></td><td>Borrado en cascada con el account.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="grid g2" style="margin-top:8px">
+    <div class="card">
+      <h4>Por qué JSONB</h4>
+      <p><code>capture_config</code>, <code>capture_config_default</code>, <code>transcript</code> y <code>extraction</code> tienen forma variable: cambian con el esquema de captura de cada médico y con la estructura de la transcripción de Scribe. Guardarlos en <code>JSONB</code> evita migraciones cada vez que un doctor ajusta sus campos.</p>
+    </div>
+    <div class="card">
+      <h4>Migraciones (Alembic)</h4>
+      <p>El esquema lo maneja Alembic, no <code>create_all</code>. Dos revisiones: <code>0001_baseline</code> (users, patients, consultations) y <code>0002_accounts_and_roles</code> (introduce el modelo multitenant). En el arranque se ejecuta <code>alembic upgrade head</code> antes de levantar la API.</p>
+    </div>
+  </div>
+
+  <p style="margin-top:18px"><strong>IDs legibles.</strong> En vez de UUIDs crudos, las claves primarias usan prefijos por entidad: <code>acc-…</code> (account), <code>u-…</code> (user), <code>p-…</code> (patient), <code>inv-…</code> (invitación) y <code>CV-xxxxxx</code> (consulta). Facilita leer logs y soporte.</p>
+</section>
+
+<nav class="pagenav">
+  <a href="07-multitenant-roles.html">← Multitenant y roles</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="09-api.html">API REST →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

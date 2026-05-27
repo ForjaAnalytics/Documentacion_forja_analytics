@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Frontend — Trustmed Assistant Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Assistant</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-flujo-clinico.html">Flujo clínico</a>
+  <a href="05-pipeline-ia.html">Pipeline de IA</a>
+  <a href="06-captura-configurable.html">Captura configurable</a>
+  <a href="07-multitenant-roles.html">Multitenant y roles</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html" class="active">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">10 · Datos &amp; API</h2>
+  <h3 class="title">Frontend</h3>
+  <p class="sub">Un SPA de React 18 sobre Vite, con Tailwind para estilos y Zustand para el estado global. Sin dependencias pesadas: React Router, Zustand y <code>docx</code> para exportar.</p>
+
+  <h4 style="font-size:16px;margin:0 0 12px">Estructura</h4>
+  <pre>src/
+  main.jsx          <span class="c"># root de React</span>
+  App.jsx           <span class="c"># layout del doctor (sidebar + Outlet)</span>
+  router.jsx        <span class="c"># rutas lazy + guards de acceso</span>
+  store.js          <span class="c"># Zustand: auth, consulta, cola de visitas</span>
+  lib/
+    api.js          <span class="c"># cliente fetch con JWT + manejo de 401</span>
+    docx.js         <span class="c"># genera el documento Word</span>
+    hooks/          <span class="c"># useRecorder, useTweaks, useVisitQueue…</span>
+  components/       <span class="c"># Header, Sidebar, WaveformCanvas, ui/, admin/</span>
+  pages/            <span class="c"># Login, Consent, Capture, Upload, Results, Patients…</span>
+    platform/       <span class="c"># sub-app del super admin</span></pre>
+
+  <h4 style="font-size:16px;margin:24px 0 12px">Cliente de API (<code>lib/api.js</code>)</h4>
+  <p>Un único <code>request()</code> centraliza todas las llamadas. Inyecta el header <code>Authorization</code> con el token de <code>localStorage</code>, pone <code>Content-Type: application/json</code> salvo en <code>FormData</code>, y ante un <strong>401</strong> borra el token y dispara un evento <code>cv:unauthorized</code> que el store escucha para cerrar la sesión. Expone tres espacios de nombres: <code>api</code> (doctor), <code>accountApi</code> (owner) y <code>adminApi</code> (super admin).</p>
+  <pre><span class="k">async function</span> <span class="f">request</span>(path, opts) {
+  <span class="k">const</span> token = getToken();
+  <span class="k">const</span> res = <span class="k">await</span> fetch(`${BASE}${path}`, {
+    ...opts,
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...opts.headers },
+  });
+  <span class="k">if</span> (res.status === <span class="s">401</span>) { setToken(<span class="k">null</span>); window.dispatchEvent(<span class="k">new</span> Event(<span class="s">'cv:unauthorized'</span>)); }
+  ...
+}</pre>
+
+  <h4 style="font-size:16px;margin:24px 0 12px">Subida directa a Drive</h4>
+  <p><code>uploadToDrive(sessionUri, blob)</code> usa <code>XMLHttpRequest</code> (no <code>fetch</code>) para tener <strong>progreso real</strong> de subida: hace <code>PUT</code> del blob a la <code>session_uri</code> que devolvió el backend, reporta porcentaje vía <code>onProgress</code> y soporta cancelación con <code>AbortSignal</code>. El archivo nunca pasa por el backend.</p>
+
+  <h4 style="font-size:16px;margin:24px 0 12px">Estado global (<code>store.js</code>)</h4>
+  <div class="grid g3">
+    <div class="card"><h4>Auth</h4><p><code>user</code> y <code>hasToken</code> hidratados desde <code>localStorage</code>. <code>setAuth</code> persiste; <code>logout</code> limpia todo y revoca blobs.</p></div>
+    <div class="card"><h4>Consulta actual</h4><p><code>consentAccepted</code>, <code>patient</code>, <code>consultType</code>, <code>blob</code>/<code>blobUrl</code>, <code>extraction</code>. <code>resetConsultation</code> deja todo listo para la siguiente.</p></div>
+    <div class="card"><h4>Cola de visitas</h4><p><code>queue[]</code> para rondas: <code>addQueueItem</code>, <code>updateQueueItem</code>, <code>removeQueueItem</code>, cada item con su estado y progreso.</p></div>
+  </div>
+
+  <h4 style="font-size:16px;margin:24px 0 12px">Páginas principales</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Ruta</th><th>Página</th><th>Función</th></tr></thead>
+    <tbody>
+      <tr><td><code>/login</code> · <code>/invite/:token</code></td><td>Login · Invite</td><td>Acceso y aceptación de invitaciones (públicas).</td></tr>
+      <tr><td><code>/</code></td><td>Consent</td><td>Consentimiento; puerta de entrada al flujo clínico.</td></tr>
+      <tr><td><code>/capture</code> · <code>/upload</code></td><td>Capture · Upload</td><td>Grabar con waveform y subir a Drive con progreso.</td></tr>
+      <tr><td><code>/results/:id</code></td><td>Results</td><td>Polling del estado, edición de la extracción, export a Word.</td></tr>
+      <tr><td><code>/round</code> · <code>/round/visit/:localId</code></td><td>Round</td><td>Cola de visitas para rondas hospitalarias.</td></tr>
+      <tr><td><code>/patients{/:id}</code></td><td>Patients</td><td>CRUD de pacientes e historial.</td></tr>
+      <tr><td><code>/account</code> · <code>/admin</code></td><td>Account · Admin</td><td>Perfil/owner y panel local de ajustes (tweaks).</td></tr>
+      <tr><td><code>/platform/*</code></td><td>Platform</td><td>Sub-app del super admin: accounts, users, usage, billing.</td></tr>
+    </tbody>
+  </table></div>
+
+  <p style="margin-top:18px"><strong>Build (Vite).</strong> Servidor de desarrollo en el puerto <code>5191</code> (<code>strictPort</code>), alias <code>@ → src</code>, y <em>code-splitting</em> manual que separa <code>react</code> y <code>zustand</code> en chunks propios. Las rutas se cargan con <code>lazy</code> + <code>Suspense</code> para un bundle inicial ligero.</p>
+</section>
+
+<nav class="pagenav">
+  <a href="09-api.html">← API REST</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="11-integraciones.html">Integraciones externas →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

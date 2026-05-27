@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seguridad — Trustmed Assistant Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Assistant</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-flujo-clinico.html">Flujo clínico</a>
+  <a href="05-pipeline-ia.html">Pipeline de IA</a>
+  <a href="06-captura-configurable.html">Captura configurable</a>
+  <a href="07-multitenant-roles.html">Multitenant y roles</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html" class="active">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">12 · Infraestructura</h2>
+  <h3 class="title">Seguridad</h3>
+  <p class="sub">El sistema maneja datos clínicos sensibles. Estas son las superficies de seguridad y cómo se protege cada una.</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <h4>Autenticación — JWT</h4>
+      <p>Tokens <strong>HS256</strong> firmados con <code>JWT_SECRET</code>, con claim <code>sub = user_id</code> y expiración de <code>JWT_EXPIRE_DAYS</code> (30 por defecto). El frontend los envía en <code>Authorization: Bearer</code>. <code>get_current_user</code> los decodifica y distingue token <em>expirado</em> de <em>inválido</em> (ambos → 401).</p>
+    </div>
+    <div class="card">
+      <h4>Contraseñas — bcrypt</h4>
+      <p>Se almacenan solo hashes <strong>bcrypt</strong> (<code>hash_password</code> / <code>verify_password</code>), con salt por contraseña. El cambio de contraseña exige enviar la actual + la nueva juntas y valida la actual antes de rotar.</p>
+    </div>
+    <div class="card">
+      <h4>Autorización — roles por dependencia</h4>
+      <p>El control de acceso se aplica con dependencias de FastAPI: <code>require_super_admin</code>, <code>require_account_owner</code> (owner o super_admin) y <code>get_current_account</code>, que bloquea (403) si el account está <code>suspended</code>/<code>cancelled</code> —salvo para super_admin.</p>
+    </div>
+    <div class="card">
+      <h4>Aislamiento por tenant</h4>
+      <p>Las consultas de queries filtran siempre por <code>user_id</code> (y por <code>account_id</code> en vistas de account). Un doctor no puede leer pacientes ni consultas de otro: los <code>GET /:id</code> devuelven 404 si el recurso no es suyo.</p>
+    </div>
+    <div class="card">
+      <h4>Cuentas suspendidas</h4>
+      <p>Un user <code>suspended</code> no puede iniciar sesión ni operar (403). El owner puede suspender miembros, pero no a sí mismo ni al owner del account.</p>
+    </div>
+    <div class="card">
+      <h4>Impersonación auditable</h4>
+      <p>El super_admin obtiene un token <strong>corto (1 h)</strong> con el claim <code>impersonated_by</code>, que permite al frontend mostrar un banner y deja rastro para auditoría. No se puede impersonar a otro super_admin.</p>
+    </div>
+    <div class="card">
+      <h4>Minimización de datos</h4>
+      <p>El <code>overview</code> del account (business) expone solo metadata —nombre del paciente, doctor, conteo y fecha— y <strong>omite</strong> documento, edad, sexo, contacto, notas, transcript, extracción y <code>drive_file_id</code>.</p>
+    </div>
+    <div class="card">
+      <h4>Secretos y CORS</h4>
+      <p>El JSON de la service account vive fuera del repositorio (<code>secrets/</code> en <code>.gitignore</code>, o como variable de entorno en producción). El CORS está restringido a los orígenes de <code>CORS_ORIGINS</code>. Las claves de IA y el <code>JWT_SECRET</code> nunca se hardcodean.</p>
+    </div>
+  </div>
+
+  <h4 style="font-size:16px;margin:26px 0 10px">Sesión en el navegador</h4>
+  <p>El token y el perfil se guardan en <code>localStorage</code>. El cliente de API reacciona a un <strong>401</strong> borrando el token y emitiendo <code>cv:unauthorized</code>, que el store usa para cerrar la sesión y limpiar el estado (incluida la revocación de URLs de blob de audio). Esto evita dejar sesiones colgadas con tokens caducos.</p>
+
+  <div class="card" style="margin-top:14px;border-color:rgba(217,119,6,.4)">
+    <h4><span class="badge b-amber">Pendientes / consideraciones</span></h4>
+    <p style="margin-bottom:0">El consentimiento del flujo clínico es una confirmación de UI (no un registro firmado persistido). El billing con Stripe está como <em>placeholder</em>. Para un despliegue clínico real conviene revisar: cifrado/retención de los audios en Drive, registro de auditoría persistente y acuerdos de tratamiento de datos según la normativa aplicable.</p>
+  </div>
+</section>
+
+<nav class="pagenav">
+  <a href="11-integraciones.html">← Integraciones externas</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

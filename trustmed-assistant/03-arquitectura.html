@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arquitectura — Trustmed Assistant Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Assistant</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html" class="active">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-flujo-clinico.html">Flujo clínico</a>
+  <a href="05-pipeline-ia.html">Pipeline de IA</a>
+  <a href="06-captura-configurable.html">Captura configurable</a>
+  <a href="07-multitenant-roles.html">Multitenant y roles</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">03 · Visión general</h2>
+  <h3 class="title">Vista de sistema</h3>
+  <p class="sub">Dos aplicaciones desplegadas por separado —un SPA de React y una API FastAPI— que se comunican por HTTP+JSON, sobre una base de datos Postgres y tres servicios externos de nube/IA.</p>
+
+  <div class="diagram">
+    <div class="layer">
+      <div class="layer-label">Capa de presentación</div>
+      <div class="row">
+        <div class="node ui"><span class="tag">Vercel</span><div class="nh"><span class="dotc"></span> Dashboard React</div><div class="nd">SPA Vite/React/Tailwind. Estado con Zustand. Consume <code>/api/*</code> con un JWT en el header <code>Authorization</code>.</div></div>
+      </div>
+    </div>
+    <div class="flowarrow">↑ ↓ HTTP + JSON</div>
+    <div class="layer">
+      <div class="layer-label">Backend — FastAPI (Railway)</div>
+      <div class="row">
+        <div class="node wrk"><span class="tag">routers</span><div class="nh"><span class="dotc"></span> API REST</div><div class="nd">auth · uploads · consultations · patients · users · account · admin.</div></div>
+        <div class="node wrk"><span class="tag">BackgroundTask</span><div class="nh"><span class="dotc"></span> Pipeline</div><div class="nd">Orquesta transcripción + extracción tras crear la consulta. Actualiza <code>status</code> en DB.</div></div>
+        <div class="node wrk"><span class="tag">services</span><div class="nh"><span class="dotc"></span> Integraciones</div><div class="nd"><code>drive</code> · <code>audio</code> · <code>transcribe</code> · <code>extract</code>.</div></div>
+      </div>
+    </div>
+    <div class="flowarrow">↑ ↓</div>
+    <div class="layer">
+      <div class="layer-label">Estado compartido</div>
+      <div class="row">
+        <div class="node state"><span class="tag">SQLAlchemy</span><div class="nh"><span class="dotc"></span> PostgreSQL</div><div class="nd">Accounts, users, patients, consultations, invitations. <code>transcript</code>, <code>extraction</code> y <code>capture_config</code> en columnas JSONB.</div></div>
+      </div>
+    </div>
+    <div class="flowarrow">↑ ↓</div>
+    <div class="layer">
+      <div class="layer-label">Servicios externos</div>
+      <div class="row">
+        <div class="node ext"><span class="tag">Service Account</span><div class="nh"><span class="dotc"></span> Google Drive</div><div class="nd">Almacena los audios. Subida resumable directa desde el navegador.</div></div>
+        <div class="node ext"><span class="tag">REST · STT</span><div class="nh"><span class="dotc"></span> ElevenLabs Scribe</div><div class="nd">Audio → texto con diarización (ES-CO).</div></div>
+        <div class="node ext"><span class="tag">SDK · tool use</span><div class="nh"><span class="dotc"></span> Anthropic Claude</div><div class="nd">Transcripción → datos estructurados.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <p><strong>Principio de diseño.</strong> El audio <strong>no atraviesa el backend</strong>: el navegador sube el blob directo a Drive con una sesión resumable que el backend solo inicia (ver <a href="11-integraciones.html">Integraciones</a>). El backend luego descarga ese archivo para procesarlo. El trabajo pesado —transcripción y extracción— corre como <strong>BackgroundTask</strong> de FastAPI tras responder al cliente, así que la petición de crear la consulta vuelve de inmediato y el frontend hace <em>polling</em> del estado.</p>
+
+  <h4 style="font-size:18px;margin:26px 0 14px">Componentes de un vistazo</h4>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Componente</th><th>Tecnología</th><th>Responsabilidad</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge b-amber">Frontend</span></td><td class="mono-col"><code>React 18 · Vite</code></td><td>SPA: login, consentimiento, grabación, subida, resultados editables, pacientes, rondas y panel de plataforma.</td></tr>
+        <tr><td><span class="badge b-em">API</span></td><td class="mono-col"><code>FastAPI</code></td><td>Routers REST protegidos por JWT, validación con Pydantic, control de roles por dependencias.</td></tr>
+        <tr><td><span class="badge b-em">Pipeline</span></td><td class="mono-col"><code>app.services.pipeline</code></td><td>Descarga audio → normaliza → transcribe → extrae → guarda. Maneja errores y estados.</td></tr>
+        <tr><td><span class="badge b-violet">DB</span></td><td class="mono-col"><code>PostgreSQL</code></td><td>Persistencia. Migraciones con Alembic. JSONB para configuración y resultados.</td></tr>
+        <tr><td><span class="badge b-blue">Drive</span></td><td class="mono-col"><code>google-auth</code></td><td>Almacenamiento de audios mediante service account y subidas resumables.</td></tr>
+        <tr><td><span class="badge b-blue">Scribe</span></td><td class="mono-col"><code>httpx → ElevenLabs</code></td><td>Transcripción con timestamps y diarización por hablante.</td></tr>
+        <tr><td><span class="badge b-blue">Claude</span></td><td class="mono-col"><code>anthropic SDK</code></td><td>Extracción estructurada vía <em>tool use</em> con schema dinámico.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<nav class="pagenav">
+  <a href="02-glosario.html">← Glosario</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="04-flujo-clinico.html">Flujo clínico →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

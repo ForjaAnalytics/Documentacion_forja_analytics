@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flujo clínico — Trustmed Assistant Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Assistant</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-flujo-clinico.html" class="active">Flujo clínico</a>
+  <a href="05-pipeline-ia.html">Pipeline de IA</a>
+  <a href="06-captura-configurable.html">Captura configurable</a>
+  <a href="07-multitenant-roles.html">Multitenant y roles</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">04 · El sistema</h2>
+  <h3 class="title">El recorrido del médico</h3>
+  <p class="sub">Cómo se ve el flujo desde la silla del doctor, paso a paso, y qué hace cada pantalla del frontend en el camino.</p>
+
+  <div class="tline">
+    <div class="ev"><span class="d">/login</span><br><b>1 · Iniciar sesión</b><br>El médico se autentica y recibe un JWT. El token y el perfil quedan en <code>localStorage</code>. Si el rol es <code>super_admin</code>, se redirige a <code>/platform</code> en vez del flujo clínico.</div>
+    <div class="ev"><span class="d">/ (ConsentPage)</span><br><b>2 · Consentimiento</b><br>Pantalla inicial del flujo de doctor. Aceptar el consentimiento habilita la grabación (<code>consentAccepted</code> en el store actúa de guard hacia <code>/capture</code>).</div>
+    <div class="ev"><span class="d">/capture (CapturePage)</span><br><b>3 · Elegir paciente y grabar</b><br>Se selecciona el paciente y el tipo de consulta, y se graba con <code>MediaRecorder</code> (hook <code>useRecorder</code>), con visualizador de onda. Al terminar, el blob de audio queda en el store.</div>
+    <div class="ev"><span class="d">/upload (UploadPage)</span><br><b>4 · Subir el audio</b><br>El frontend pide <code>POST /api/uploads/init</code>, recibe una <code>session_uri</code> de Drive y hace el <code>PUT</code> del blob <strong>directo a Drive</strong> con barra de progreso real. Drive devuelve el <code>id</code> del archivo.</div>
+    <div class="ev"><span class="d">POST /api/consultations</span><br><b>5 · Crear la consulta</b><br>Con el <code>drive_file_id</code>, el frontend crea la consulta. El backend la guarda como <code>queued</code> y dispara el pipeline en segundo plano.</div>
+    <div class="ev"><span class="d">/results/:id (ResultsPage)</span><br><b>6 · Revisar y editar</b><br>La pantalla hace <em>polling</em> de <code>GET /api/consultations/:id</code> hasta <code>status = ready</code>. Muestra la extracción en campos editables; el médico corrige y guarda con <code>PATCH</code>.</div>
+    <div class="ev"><span class="d">docx</span><br><b>7 · Exportar</b><br>Con la extracción aprobada, se genera un documento Word en el navegador (librería <code>docx</code>) y se descarga.</div>
+  </div>
+
+  <h4 style="font-size:18px;margin:30px 0 12px">Rondas hospitalarias: la cola de visitas</h4>
+  <p>Además del flujo de una sola consulta, existe un modo <strong>ronda</strong> (<code>/round</code>) pensado para visitar a varios pacientes seguidos. Cada visita se añade a una <strong>cola</strong> en el store (<code>queue</code>): el médico graba una tras otra y cada item se sube y procesa de forma independiente, con su propio estado.</p>
+  <div class="pipe" style="margin-top:14px">
+    <div class="stage"><div class="sn">ESTADO</div><div class="st">pending</div><div class="rf">grabado, en cola</div></div>
+    <div class="stage"><div class="sn">ESTADO</div><div class="st">uploading</div><div class="sw">uploadPct</div><div class="rf">subiendo a Drive</div></div>
+    <div class="stage"><div class="sn">ESTADO</div><div class="st">processing</div><div class="rf">pipeline en curso</div></div>
+    <div class="stage"><div class="sn">ESTADO</div><div class="st">ready</div><div class="rf">extracción lista</div></div>
+    <div class="stage"><div class="sn">ESTADO</div><div class="st">error</div><div class="rf">falló; reintenta</div></div>
+  </div>
+
+  <h4 style="font-size:18px;margin:30px 0 12px">Guards de navegación</h4>
+  <p>El router protege el flujo para que no se pueda saltar pasos:</p>
+  <ul>
+    <li><strong>Autenticación</strong> — todas las rutas privadas requieren token + usuario en el store; si no, redirigen a <code>/login</code>.</li>
+    <li><strong>Sólo doctor</strong> — un <code>super_admin</code> que intente entrar al flujo clínico se redirige a <code>/platform</code>.</li>
+    <li><strong>Consentimiento</strong> — <code>/capture</code> exige <code>consentAccepted</code>; si falta, vuelve a la pantalla de consentimiento.</li>
+    <li><strong>Blob presente</strong> — <code>/upload</code> exige que haya un audio grabado; si no, vuelve a <code>/capture</code>.</li>
+  </ul>
+
+  <p style="margin-top:10px">Al cerrar sesión o reiniciar una consulta, el store revoca las URLs de blob creadas (<code>URL.revokeObjectURL</code>) para no filtrar memoria del navegador.</p>
+</section>
+
+<nav class="pagenav">
+  <a href="03-arquitectura.html">← Arquitectura</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="05-pipeline-ia.html">Pipeline de IA →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

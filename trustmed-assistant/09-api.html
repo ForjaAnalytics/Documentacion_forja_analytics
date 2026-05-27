@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API REST — Trustmed Assistant Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Assistant</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-flujo-clinico.html">Flujo clínico</a>
+  <a href="05-pipeline-ia.html">Pipeline de IA</a>
+  <a href="06-captura-configurable.html">Captura configurable</a>
+  <a href="07-multitenant-roles.html">Multitenant y roles</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html" class="active">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">09 · Datos &amp; API</h2>
+  <h3 class="title">API REST</h3>
+  <p class="sub">FastAPI con siete routers bajo <code>/api/*</code>. Salvo el health-check, el login/registro y la lectura/aceptación de invitaciones, todo exige un JWT en el header <code>Authorization: Bearer &lt;token&gt;</code>.</p>
+
+  <h4 style="font-size:16px;margin:0 0 10px">Público / operacional</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Método</th><th>Ruta</th><th>Descripción</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/health</code></td><td>Liveness — <code>{"status":"ok","service":"cuidarte-voice-back"}</code>. Usado por el healthcheck de Railway.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:22px 0 10px"><code>auth</code> — registro, sesión, invitaciones</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Método</th><th>Ruta</th><th>Descripción</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-blue">POST</span></td><td><code>/api/auth/register-individual</code></td><td>Crea account individual + owner. Provisiona carpeta de Drive. Devuelve JWT.</td></tr>
+      <tr><td><span class="badge b-blue">POST</span></td><td><code>/api/auth/register-business</code></td><td>Crea account business + owner + subcarpeta del doctor.</td></tr>
+      <tr><td><span class="badge b-blue">POST</span></td><td><code>/api/auth/register</code></td><td>Compat: alias de registro individual.</td></tr>
+      <tr><td><span class="badge b-blue">POST</span></td><td><code>/api/auth/login</code></td><td>Valida credenciales (bcrypt) y emite JWT. 403 si la cuenta está suspendida.</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/api/auth/me</code></td><td>Perfil del usuario autenticado.</td></tr>
+      <tr><td><span class="badge b-amber">PATCH</span></td><td><code>/api/auth/me</code></td><td>Actualiza nombre y/o rota contraseña (current + new juntos).</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/api/auth/invitations/{token}</code></td><td><strong>Público.</strong> Detalles de una invitación pendiente.</td></tr>
+      <tr><td><span class="badge b-blue">POST</span></td><td><code>/api/auth/invitations/{token}/accept</code></td><td><strong>Público.</strong> Acepta, crea el member y devuelve JWT.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:22px 0 10px"><code>uploads</code> · <code>consultations</code> · <code>me</code> <span class="badge b-amber" style="vertical-align:middle">JWT</span></h4>
+  <div class="tw"><table>
+    <thead><tr><th>Método</th><th>Ruta</th><th>Descripción</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-blue">POST</span></td><td><code>/api/uploads/init</code></td><td>Abre una sesión resumable en Drive y devuelve <code>session_uri</code> + <code>folder_id</code> + <code>filename</code>.</td></tr>
+      <tr><td><span class="badge b-blue">POST</span></td><td><code>/api/consultations</code></td><td>Crea la consulta (<code>queued</code>) con el <code>drive_file_id</code> y dispara el pipeline en background.</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/api/consultations/{id}</code></td><td>Estado + extracción de una consulta (objetivo del polling).</td></tr>
+      <tr><td><span class="badge b-amber">PATCH</span></td><td><code>/api/consultations/{id}</code></td><td>Guarda ediciones del médico sobre la extracción o el paciente.</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/api/consultations</code></td><td>Lista las consultas del doctor (filtro opcional por <code>patient_id</code>).</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/api/me/capture-config</code></td><td>Esquema de captura del usuario.</td></tr>
+      <tr><td><span class="badge b-violet">PUT</span></td><td><code>/api/me/capture-config</code></td><td>Reemplaza el esquema de captura (validado con Pydantic).</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:22px 0 10px"><code>patients</code> <span class="badge b-amber" style="vertical-align:middle">JWT</span></h4>
+  <div class="tw"><table>
+    <thead><tr><th>Método</th><th>Ruta</th><th>Descripción</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/api/patients</code></td><td>Lista con búsqueda por nombre/documento y conteo de consultas.</td></tr>
+      <tr><td><span class="badge b-blue">POST</span></td><td><code>/api/patients</code></td><td>Crea paciente. 409 si repite documento del doctor.</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/api/patients/{id}</code></td><td>Ficha + conteo de consultas.</td></tr>
+      <tr><td><span class="badge b-amber">PATCH</span></td><td><code>/api/patients/{id}</code></td><td>Actualiza la ficha.</td></tr>
+      <tr><td><span class="badge b-rose">DELETE</span></td><td><code>/api/patients/{id}</code></td><td>Elimina el paciente y <strong>desvincula</strong> (no borra) sus consultas.</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/api/patients/{id}/consultations</code></td><td>Historial del paciente.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:22px 0 10px"><code>account</code> — owner del account <span class="badge b-em" style="vertical-align:middle">owner</span></h4>
+  <div class="tw"><table>
+    <thead><tr><th>Método</th><th>Ruta</th><th>Descripción</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-em">GET</span> / <span class="badge b-amber">PATCH</span></td><td><code>/api/account</code></td><td>Datos + uso del mes del account; editar nombre y <code>capture_config_default</code>.</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/api/account/users</code></td><td>Doctores del account.</td></tr>
+      <tr><td><span class="badge b-amber">PATCH</span></td><td><code>/api/account/users/{id}</code></td><td>Cambia el status de un miembro (no al owner ni a uno mismo).</td></tr>
+      <tr><td><span class="badge b-em">GET</span> / <span class="badge b-blue">POST</span></td><td><code>/api/account/invitations</code></td><td>Listar / crear invitaciones (solo business; respeta el cupo).</td></tr>
+      <tr><td><span class="badge b-rose">DELETE</span></td><td><code>/api/account/invitations/{id}</code></td><td>Revoca una invitación pendiente.</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/api/account/overview</code></td><td>Metadata mínima por paciente/doctor (solo business).</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:22px 0 10px"><code>admin</code> — plataforma <span class="badge b-violet" style="vertical-align:middle">super_admin</span></h4>
+  <div class="tw"><table>
+    <thead><tr><th>Método</th><th>Ruta</th><th>Descripción</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-em">GET</span> / <span class="badge b-blue">POST</span></td><td><code>/api/admin/accounts</code></td><td>Listar (con filtros) / crear accounts.</td></tr>
+      <tr><td><span class="badge b-em">GET</span> / <span class="badge b-amber">PATCH</span></td><td><code>/api/admin/accounts/{id}</code></td><td>Ver / editar cuotas y estado de un account.</td></tr>
+      <tr><td><span class="badge b-em">GET</span> / <span class="badge b-amber">PATCH</span></td><td><code>/api/admin/users{/id}</code></td><td>Listar usuarios globales / editar uno.</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/api/admin/usage</code></td><td>Uso agregado: consultas, tokens, segundos de transcripción.</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/api/admin/billing</code></td><td>Resumen por estado de account (placeholders de Stripe).</td></tr>
+      <tr><td><span class="badge b-blue">POST</span></td><td><code>/api/admin/impersonate/{user_id}</code></td><td>Token corto (1 h) para actuar como otro doctor.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<nav class="pagenav">
+  <a href="08-base-datos.html">← Base de datos</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="10-frontend.html">Frontend →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

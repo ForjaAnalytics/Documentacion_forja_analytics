@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pipeline de IA — Trustmed Assistant Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Assistant</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-flujo-clinico.html">Flujo clínico</a>
+  <a href="05-pipeline-ia.html" class="active">Pipeline de IA</a>
+  <a href="06-captura-configurable.html">Captura configurable</a>
+  <a href="07-multitenant-roles.html">Multitenant y roles</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">05 · El sistema</h2>
+  <h3 class="title">Pipeline de IA</h3>
+  <p class="sub">El proceso asíncrono (<code>app/services/pipeline.py</code>) que convierte un audio en Drive en una extracción estructurada. Corre como BackgroundTask y va actualizando <code>status</code> para que el frontend lo siga por <em>polling</em>.</p>
+
+  <div class="pipe">
+    <div class="stage"><div class="sn">1</div><div class="st">Descarga</div><div class="sw">drive.download_file</div><div class="rf">trae el audio de Drive</div></div>
+    <div class="stage"><div class="sn">2</div><div class="st">Normaliza</div><div class="sw">audio.normalize_for_stt</div><div class="rf">ffmpeg: quita silencio</div></div>
+    <div class="stage"><div class="sn">3</div><div class="st">Transcribe</div><div class="sw">transcribe.transcribe</div><div class="rf">ElevenLabs Scribe</div></div>
+    <div class="stage"><div class="sn">4</div><div class="st">Diálogo</div><div class="sw">format_as_dialog</div><div class="rf">turnos por hablante</div></div>
+    <div class="stage"><div class="sn">5</div><div class="st">Extrae</div><div class="sw">extract.extract</div><div class="rf">Claude tool use</div></div>
+    <div class="stage"><div class="sn">6</div><div class="st">Guarda</div><div class="sw">status = ready</div><div class="rf">extraction + usage</div></div>
+  </div>
+
+  <h4 style="font-size:16px;margin:24px 0 10px">Estados de la consulta</h4>
+  <div class="erline">
+    <span class="badge b-gray">queued</span> →
+    <span class="badge b-blue">transcribing</span> →
+    <span class="badge b-violet">extracting</span> →
+    <span class="badge b-em">ready</span>
+    &nbsp;·&nbsp; cualquier fallo → <span class="badge b-rose">error</span>
+  </div>
+  <p>Cada transición se hace <code>commit</code> en la DB en el momento, de modo que el frontend ve el avance en tiempo casi real. Si algo lanza una excepción, el pipeline la captura, marca <code>status = "error"</code> y guarda el mensaje en la columna <code>error</code>.</p>
+
+  <h4 style="font-size:16px;margin:26px 0 10px">El corazón, en código</h4>
+  <pre><span class="k">def</span> <span class="f">run</span>(consultation_id: str) -> <span class="k">None</span>:
+    c = db.get(Consultation, consultation_id)
+
+    <span class="c"># 1-2. Reutiliza transcripción cacheada si ya existe</span>
+    <span class="c">#       (útil al reextraer tras cambiar capture_config)</span>
+    <span class="k">if</span> c.transcript <span class="k">and</span> (c.transcript.get(<span class="s">"words"</span>) <span class="k">or</span> c.transcript.get(<span class="s">"text"</span>)):
+        transcript = c.transcript
+    <span class="k">else</span>:
+        c.status = <span class="s">"transcribing"</span>; db.commit()
+        audio_bytes = drive.download_file(c.drive_file_id)
+        audio_bytes, fname, mime = audio.normalize_for_stt(audio_bytes, ...)
+        transcript = transcribe.transcribe(audio_bytes, filename=fname, mime_type=mime)
+        c.transcript = transcript
+
+    transcript_text = transcribe.format_as_dialog(transcript)
+
+    <span class="c"># 3. Extracción con Claude usando el capture_config del usuario</span>
+    c.status = <span class="s">"extracting"</span>; db.commit()
+    user = db.get(User, c.user_id)
+    extraction, usage = extract.extract(transcript_text, user.capture_config <span class="k">or</span> {})
+    c.extraction = extraction
+    c.tokens_input = usage[<span class="s">"input_tokens"</span>] + usage[<span class="s">"cache_read_tokens"</span>] + usage[<span class="s">"cache_write_tokens"</span>]
+    c.tokens_output = usage[<span class="s">"output_tokens"</span>]
+    c.model_used = usage[<span class="s">"model"</span>]
+
+    c.status = <span class="s">"ready"</span>; c.ready_at = now(); db.commit()</pre>
+
+  <div class="grid g2" style="margin-top:6px">
+    <div class="card">
+      <h4>Normalización de audio</h4>
+      <p>Las grabaciones del navegador a veces traen una cola larga de silencio digital. Si se envía completa, Scribe <strong>alucina</strong> texto sobre el silencio y corrompe la transcripción. <code>normalize_for_stt</code> usa <strong>ffmpeg</strong> para quitar silencio (<code>silenceremove</code> a −45&nbsp;dB) y reencoda a FLAC 16&nbsp;kHz mono.</p>
+      <p style="margin-bottom:0"><strong>Fallback defensivo:</strong> si ffmpeg no está en el <code>PATH</code> o falla, devuelve el audio original sin tocar — el pipeline no se cae y el dev local sin ffmpeg sigue funcionando.</p>
+    </div>
+    <div class="card">
+      <h4>Transcripción cacheada</h4>
+      <p>El paso 1–2 se <strong>salta</strong> si la consulta ya tiene un <code>transcript</code> guardado. Esto permite <strong>re-extraer</strong> (volver a llamar a Claude) tras cambiar el <code>capture_config</code> sin re-transcribir ni pagar de nuevo el audio — el script <code>scripts/rerun_extract.py</code> usa justamente esto.</p>
+    </div>
+    <div class="card">
+      <h4>Reconstrucción del diálogo</h4>
+      <p><code>format_as_dialog</code> agrupa las palabras de Scribe por <code>speaker_id</code> en turnos y antepone una etiqueta: <code>MÉDICO:</code> / <code>PACIENTE:</code>. Si no hubo diarización, cae al texto plano. Ese texto etiquetado es lo que recibe Claude.</p>
+    </div>
+    <div class="card">
+      <h4>Seguimiento de uso</h4>
+      <p>Cada consulta guarda <code>tokens_input</code>, <code>tokens_output</code>, <code>transcription_seconds</code> y <code>model_used</code>. Estos contadores alimentan el reporte de uso del panel de super admin (ver <a href="07-multitenant-roles.html">Multitenant y roles</a>).</p>
+    </div>
+  </div>
+</section>
+
+<nav class="pagenav">
+  <a href="04-flujo-clinico.html">← Flujo clínico</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="06-captura-configurable.html">Captura configurable →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

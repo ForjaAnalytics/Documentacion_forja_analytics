@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stack &amp; Deploy — Trustmed Assistant Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Assistant</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-flujo-clinico.html">Flujo clínico</a>
+  <a href="05-pipeline-ia.html">Pipeline de IA</a>
+  <a href="06-captura-configurable.html">Captura configurable</a>
+  <a href="07-multitenant-roles.html">Multitenant y roles</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html" class="active">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">13 · Infraestructura</h2>
+  <h3 class="title">Stack &amp; Deploy</h3>
+  <p class="sub">Backend y frontend se despliegan por separado: la API en Railway, el SPA en Vercel. Cada uno con su archivo de configuración en el repo.</p>
+
+  <h4 style="font-size:18px;margin:0 0 12px"><span class="badge b-em">Backend</span> Railway (NIXPACKS)</h4>
+  <p><code>railway.json</code> define el build con NIXPACKS y el deploy: arranca con <code>uvicorn main:app --host 0.0.0.0 --port $PORT</code>, hace healthcheck en <code>/health</code> y reinicia ante fallos. Existe un <code>Procfile</code> equivalente para entornos tipo Heroku. <code>nixpacks.toml</code> añade <strong>ffmpeg</strong> al sistema (lo necesita la normalización de audio).</p>
+  <pre><span class="c">// railway.json</span>
+{
+  <span class="f">"build"</span>: { <span class="f">"builder"</span>: <span class="s">"NIXPACKS"</span> },
+  <span class="f">"deploy"</span>: {
+    <span class="f">"startCommand"</span>: <span class="s">"uvicorn main:app --host 0.0.0.0 --port $PORT"</span>,
+    <span class="f">"healthcheckPath"</span>: <span class="s">"/health"</span>,
+    <span class="f">"restartPolicyType"</span>: <span class="s">"ON_FAILURE"</span>
+  }
+}</pre>
+  <p>En el arranque, el <code>lifespan</code> de FastAPI: <strong>(1)</strong> crea/promueve al super admin si <code>SUPER_ADMIN_*</code> está configurado, y <strong>(2)</strong> valida que la service account pueda leer la carpeta de Drive, registrando un error claro si no. Las migraciones se aplican con <code>alembic upgrade head</code> antes de levantar la API.</p>
+
+  <h4 style="font-size:18px;margin:26px 0 12px"><span class="badge b-amber">Frontend</span> Vercel (estático)</h4>
+  <p>Build estático con Vite (<code>vite build</code>). <code>vercel.json</code> reescribe todas las rutas a <code>/index.html</code> para que el routing del SPA funcione con recargas y deep-links. La URL del backend se inyecta en build con <code>VITE_API_URL</code> (por defecto <code>http://localhost:8000</code>).</p>
+  <pre><span class="c">// vercel.json</span>
+{ <span class="f">"rewrites"</span>: [ { <span class="f">"source"</span>: <span class="s">"/(.*)"</span>, <span class="f">"destination"</span>: <span class="s">"/index.html"</span> } ] }</pre>
+
+  <h4 style="font-size:16px;margin:26px 0 10px">Dependencias clave</h4>
+  <div class="two">
+    <div class="card">
+      <h4>Backend (Python)</h4>
+      <p style="margin-bottom:6px"><code>fastapi</code> · <code>uvicorn[standard]</code> · <code>pydantic</code> + <code>pydantic-settings</code></p>
+      <p style="margin-bottom:6px"><code>sqlalchemy</code> · <code>psycopg[binary]</code> · <code>alembic</code></p>
+      <p style="margin-bottom:6px"><code>google-auth</code> · <code>httpx</code> · <code>requests</code></p>
+      <p style="margin-bottom:0"><code>anthropic</code> · <code>PyJWT</code> · <code>bcrypt</code></p>
+    </div>
+    <div class="card">
+      <h4>Frontend (JavaScript)</h4>
+      <p style="margin-bottom:6px"><code>react</code> 18 · <code>react-dom</code> · <code>react-router-dom</code> 6</p>
+      <p style="margin-bottom:6px"><code>zustand</code> (estado) · <code>docx</code> (export Word)</p>
+      <p style="margin-bottom:0"><code>vite</code> 5 · <code>@vitejs/plugin-react</code> · <code>tailwindcss</code> 3 · <code>postcss</code> · <code>autoprefixer</code></p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:18px">
+    <h4>Base de datos</h4>
+    <p style="margin-bottom:0">PostgreSQL gestionado (Railway en producción). En local, <code>docker-compose.yml</code> levanta <code>postgres:16-alpine</code> en el puerto <strong>5433</strong> con un volumen persistente y healthcheck. <code>config.py</code> normaliza la URL: si el proveedor inyecta <code>postgres://</code> sin driver, la reescribe a <code>postgresql+psycopg://</code>.</p>
+  </div>
+</section>
+
+<nav class="pagenav">
+  <a href="12-seguridad.html">← Seguridad</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="14-operacion.html">Operación →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

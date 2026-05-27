@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Captura configurable — Trustmed Assistant Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Assistant</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-flujo-clinico.html">Flujo clínico</a>
+  <a href="05-pipeline-ia.html">Pipeline de IA</a>
+  <a href="06-captura-configurable.html" class="active">Captura configurable</a>
+  <a href="07-multitenant-roles.html">Multitenant y roles</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">06 · El sistema</h2>
+  <h3 class="title">Captura configurable</h3>
+  <p class="sub">El <code>capture_config</code> es un JSON que define qué campos extrae la IA. Cambiarlo cambia lo que Claude busca —sin tocar código— porque el <em>schema</em> de la herramienta se construye dinámicamente a partir de él.</p>
+
+  <p>Cada usuario tiene su propio <code>capture_config</code> (columna JSONB en <code>users</code>), editable vía <code>PUT /api/me/capture-config</code>. Al registrarse, se copia desde el <code>capture_config_default</code> del account, que a su vez parte del <code>DEFAULT_CAPTURE_CONFIG</code> del backend. Un campo se describe así:</p>
+
+  <pre>{
+  <span class="f">"name"</span>: <span class="s">"paciente_edad"</span>,
+  <span class="f">"type"</span>: <span class="s">"number"</span>,
+  <span class="f">"label"</span>: <span class="s">"Edad"</span>,
+  <span class="f">"required"</span>: <span class="k">true</span>,
+  <span class="f">"description"</span>: <span class="s">"Edad del paciente en años. null si no se menciona."</span>
+}</pre>
+
+  <p>La <code>description</code> es lo más importante: es el texto que Claude lee para decidir qué poner en el campo. Buenas descripciones → buenas extracciones.</p>
+
+  <h4 style="font-size:16px;margin:26px 0 10px">Tipos de campo soportados</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Tipo</th><th>JSON Schema generado</th><th>Uso típico</th></tr></thead>
+    <tbody>
+      <tr><td><code>string</code> / <code>text</code></td><td><code>["string","null"]</code></td><td>Nombre, motivo, texto libre.</td></tr>
+      <tr><td><code>number</code></td><td><code>["number","null"]</code></td><td>Edad, temperatura, número de hijos.</td></tr>
+      <tr><td><code>boolean</code></td><td><code>["boolean","null"]</code></td><td>Indicadores sí/no.</td></tr>
+      <tr><td><code>date</code></td><td><code>["string","null"]</code> + <code>format:date</code></td><td>Fechas.</td></tr>
+      <tr><td><code>enum</code></td><td><code>["string","null"]</code> + <code>enum</code></td><td>Tipo de atención (control, urgencia…).</td></tr>
+      <tr><td><code>object</code></td><td><code>["object","null"]</code> con <code>children</code></td><td>Secciones agrupadas (signos vitales, antecedentes).</td></tr>
+      <tr><td><code>array</code></td><td><code>array</code> de primitivos u objetos</td><td>Síntomas, medicamentos, diagnósticos.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:26px 0 10px">De config a herramienta de Claude</h4>
+  <p><code>extract.build_tool</code> recorre los campos y construye el <code>input_schema</code> de una herramienta llamada <code>extract_consultation</code>. Luego se fuerza a Claude a usarla con <code>tool_choice</code>, así que devuelve un objeto ya estructurado en <code>tool_use.input</code> —nada de parsear JSON de texto plano.</p>
+  <pre>tool = build_tool(capture_config)
+tool[<span class="s">"cache_control"</span>] = {<span class="s">"type"</span>: <span class="s">"ephemeral"</span>}   <span class="c"># schema cacheado 5 min</span>
+
+resp = client.messages.create(
+    model=settings.anthropic_model,
+    system=SYSTEM,
+    tools=[tool],
+    tool_choice={<span class="s">"type"</span>: <span class="s">"tool"</span>, <span class="s">"name"</span>: <span class="s">"extract_consultation"</span>},
+    messages=[{<span class="s">"role"</span>: <span class="s">"user"</span>, <span class="s">"content"</span>: transcript_text}],
+)</pre>
+  <p>El schema se marca con <code>cache_control: ephemeral</code> (<em>prompt caching</em>): consultas consecutivas dentro de ~5 minutos no vuelven a pagar los tokens del schema, que es la parte grande y estable del prompt.</p>
+
+  <h4 style="font-size:16px;margin:26px 0 12px">El esquema base de cuidados paliativos</h4>
+  <p>El <code>DEFAULT_CAPTURE_CONFIG</code> fue curado por la <strong>Dra. María Alejandra Umbacía</strong> y cubre la valoración integral. Sus secciones:</p>
+  <div class="grid g2">
+    <div class="card"><h4>General</h4><p>Datos demográficos y de contexto: nombre, edad, lugar de nacimiento y de vivienda, ocupación, escolaridad, con quién vive, número de hijos, teléfono, dirección, correo, acompañante en la consulta.</p></div>
+    <div class="card"><h4>Motivo de consulta</h4><p>El motivo principal por el que se valora al paciente.</p></div>
+    <div class="card"><h4>Enfermedad actual</h4><p>Descripción cronológica del problema de salud: inicio, evolución, características, factores y tratamientos recibidos.</p></div>
+    <div class="card"><h4>Revisión por sistemas</h4><p>Interrogatorio sistemático con cada síntoma calificado <strong>0–10</strong>: dolor, fatiga, náuseas, tristeza, ansiedad, somnolencia, disnea, apetito, bienestar, sueño y más.</p></div>
+    <div class="card"><h4>Antecedentes</h4><p>Patológicos, farmacológicos, quirúrgicos, ginecológicos (GPCA), familiares, alérgicos y toxicológicos.</p></div>
+    <div class="card"><h4>Signos vitales</h4><p>Presión arterial y temperatura tomadas o mencionadas.</p></div>
+    <div class="card"><h4>Síntomas e impresión diagnóstica</h4><p>Lista de molestias del episodio, y los diagnósticos que el médico enuncia <strong>explícitamente</strong>.</p></div>
+    <div class="card"><h4>Plan, tipo y notas</h4><p>Medicamentos prescritos (nombre, dosis, frecuencia), tipo de atención (enum) y notas libres para lo que no encaje en otro campo.</p></div>
+  </div>
+
+  <p style="margin-top:20px"><strong>Regla de oro: no inferir.</strong> El campo de <code>impresion_diagnostica</code> instruye a Claude a recoger <em>solo</em> los diagnósticos que el médico enuncia explícitamente en el audio. Tiene <strong>prohibido</strong> inferir un diagnóstico a partir de los síntomas o los antecedentes. El <code>SYSTEM</code> prompt también recuerda no inventar datos: si un campo no aparece, va <code>null</code> (o <code>[]</code> para arrays). Esto mantiene la herramienta como ayudante de documentación, no de diagnóstico.</p>
+</section>
+
+<nav class="pagenav">
+  <a href="05-pipeline-ia.html">← Pipeline de IA</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="07-multitenant-roles.html">Multitenant y roles →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Operación — Trustmed Assistant Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Assistant</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-flujo-clinico.html">Flujo clínico</a>
+  <a href="05-pipeline-ia.html">Pipeline de IA</a>
+  <a href="06-captura-configurable.html">Captura configurable</a>
+  <a href="07-multitenant-roles.html">Multitenant y roles</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html" class="active">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">14 · Infraestructura</h2>
+  <h3 class="title">Operación</h3>
+  <p class="sub">Cómo levantar el sistema en local, qué variables necesita y los puntos delicados que conviene conocer antes de operarlo.</p>
+
+  <h4 style="font-size:16px;margin:0 0 10px">Puesta en marcha local</h4>
+  <pre><span class="c"># 1 · Base de datos (Postgres en :5433)</span>
+docker compose up -d        <span class="c"># dentro de Backend/</span>
+
+<span class="c"># 2 · Backend (FastAPI en :8000)</span>
+pip install -r requirements.txt
+cp .env.example .env        <span class="c"># y completar las claves</span>
+alembic upgrade head        <span class="c"># aplica migraciones</span>
+uvicorn main:app --reload --port 8000
+
+<span class="c"># 3 · Frontend (Vite en :5191)</span>
+npm install                 <span class="c"># dentro de Frontend/</span>
+npm run dev</pre>
+  <p>Recuerda apuntar el frontend al backend con <code>VITE_API_URL</code> y agregar el origin del frontend (<code>http://localhost:5191</code>) a <code>CORS_ORIGINS</code> del backend.</p>
+
+  <h4 style="font-size:16px;margin:24px 0 10px">Variables de entorno</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Variable</th><th>Para qué</th></tr></thead>
+    <tbody>
+      <tr><td><code>DATABASE_URL</code></td><td>Conexión a Postgres. Se normaliza a <code>postgresql+psycopg://</code>.</td></tr>
+      <tr><td><code>JWT_SECRET</code> · <code>JWT_EXPIRE_DAYS</code></td><td>Firma y vida del token (genera el secret con <code>secrets.token_urlsafe(48)</code>).</td></tr>
+      <tr><td><code>GOOGLE_SA_JSON_PATH</code> / <code>GOOGLE_SA_JSON</code></td><td>Credencial de la service account (archivo en local, contenido en prod).</td></tr>
+      <tr><td><code>GOOGLE_DRIVE_FOLDER_ID</code></td><td>Carpeta raíz (Shared Drive) donde se guardan los audios.</td></tr>
+      <tr><td><code>ELEVENLABS_API_KEY</code></td><td>Transcripción (scope <code>speech_to_text</code>).</td></tr>
+      <tr><td><code>ANTHROPIC_API_KEY</code> · <code>ANTHROPIC_MODEL</code></td><td>Extracción con Claude (sugerido <code>claude-haiku-4-5</code>).</td></tr>
+      <tr><td><code>CORS_ORIGINS</code></td><td>Orígenes del frontend permitidos (lista separada por comas).</td></tr>
+      <tr><td><code>SUPER_ADMIN_EMAIL</code> · <code>SUPER_ADMIN_PASSWORD</code></td><td>Si están, el boot crea/promueve ese super admin.</td></tr>
+      <tr><td><code>FRONTEND_URL</code></td><td>Base para construir los links de invitación.</td></tr>
+      <tr><td><code>VITE_API_URL</code> <span class="badge b-amber">frontend</span></td><td>URL del backend que consume el SPA.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:24px 0 10px">Scripts útiles (<code>Backend/scripts/</code>)</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Script</th><th>Qué hace</th></tr></thead>
+    <tbody>
+      <tr><td><code>reset_db.py</code></td><td>Reinicia la base de datos local.</td></tr>
+      <tr><td><code>rerun_extract.py</code></td><td>Re-ejecuta solo la extracción reutilizando el transcript cacheado (tras cambiar el <code>capture_config</code>).</td></tr>
+      <tr><td><code>copy_capture_config.py</code> · <code>dump_user_capture_config.py</code></td><td>Copiar / volcar el esquema de captura de un usuario.</td></tr>
+      <tr><td><code>test_pipeline.py</code> · <code>e2e_test.py</code></td><td>Probar el pipeline y un flujo end-to-end.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:24px 0 12px">Puntos delicados</h4>
+  <div class="grid g2">
+    <div class="card"><h4>ffmpeg debe estar instalado</h4><p>Sin ffmpeg en el <code>PATH</code> el audio no se normaliza y Scribe puede alucinar sobre colas de silencio. En producción lo añade <code>nixpacks.toml</code>; en local instálalo aparte. El pipeline no se cae si falta (usa el audio original), pero la calidad baja.</p></div>
+    <div class="card"><h4>La carpeta debe ser Shared Drive</h4><p><code>GOOGLE_DRIVE_FOLDER_ID</code> tiene que apuntar a una <strong>Shared Drive</strong> compartida con la service account como <em>Content Manager</em>. Si no, el boot registra que la SA no puede acceder y <code>/api/uploads/init</code> fallará con 503.</p></div>
+    <div class="card"><h4>Hablantes invertidos</h4><p>Se asume <code>speaker_0 = MÉDICO</code>. Si el audio empieza con el paciente, la extracción confunde nombres; se corrige con el mapeo <code>speakers=</code> del formateador.</p></div>
+    <div class="card"><h4>Costo y modelo</h4><p>El costo lo dominan los segundos de audio (Scribe) y los tokens de Claude. El <em>prompt caching</em> abarata schemas repetidos y <code>claude-haiku-4-5</code> reduce ~3× el gasto frente a Sonnet con calidad similar en extracción.</p></div>
+  </div>
+
+  <p style="margin-top:18px"><strong>Observabilidad.</strong> El backend loguea cada paso del pipeline (<code>cuidarte.pipeline</code>, <code>cuidarte.extract</code>, <code>cuidarte.audio</code>) y el uso de tokens por consulta. El panel de super admin agrega consultas, tokens y segundos de transcripción por account y periodo, útil para vigilar consumo y costos.</p>
+</section>
+
+<nav class="pagenav">
+  <a href="13-stack-deploy.html">← Stack &amp; Deploy</a>
+  <a class="idx" href="index.html">Índice</a>
+  <span class="spacer"></span>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

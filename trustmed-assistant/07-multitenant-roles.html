@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multitenant y roles — Trustmed Assistant Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Assistant</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-flujo-clinico.html">Flujo clínico</a>
+  <a href="05-pipeline-ia.html">Pipeline de IA</a>
+  <a href="06-captura-configurable.html">Captura configurable</a>
+  <a href="07-multitenant-roles.html" class="active">Multitenant y roles</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">07 · El sistema</h2>
+  <h3 class="title">Multitenant y roles</h3>
+  <p class="sub">Cómo se aíslan los datos entre clientes (accounts), qué planes existen y quién puede hacer qué. Es el modelo que sostiene tanto a un médico solo como a una clínica con varios doctores.</p>
+
+  <h4 style="font-size:16px;margin:0 0 12px">Planes de account</h4>
+  <div class="grid g2">
+    <div class="card">
+      <h4><span class="badge b-em">individual</span></h4>
+      <p>Un médico = un account. El doctor es <code>owner</code> y comparte la misma carpeta de Drive que el account (no se anida subcarpeta). Límite por defecto: <code>max_users = 1</code>.</p>
+    </div>
+    <div class="card">
+      <h4><span class="badge b-blue">business</span></h4>
+      <p>Un account con <code>owner</code> + miembros. El owner invita doctores; cada uno recibe su <strong>subcarpeta</strong> de Drive dentro de la del account. Límite por defecto: <code>max_users = 5</code>. Solo los business pueden invitar.</p>
+    </div>
+  </div>
+
+  <p style="margin-top:18px">Todo account nace en estado <strong>trial</strong> (5 días, <code>trial_ends_at</code>) y puede pasar a <code>active</code>, <code>suspended</code> o <code>cancelled</code>. Las cuotas <code>max_users</code> y <code>max_consultations_per_month</code> son configurables por el super admin (<code>NULL</code> = ilimitado).</p>
+
+  <h4 style="font-size:16px;margin:26px 0 12px">Roles y permisos</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Rol</th><th>Campo</th><th>Puede</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-violet">super_admin</span></td><td><code>platform_role</code></td><td>Gestionar <strong>cualquier</strong> account: crear/editar accounts y usuarios, ver uso y billing, impersonar. Vive en el account <code>acc-platform</code>. Trabaja en la sub-app <code>/platform</code>.</td></tr>
+      <tr><td><span class="badge b-em">owner</span></td><td><code>account_role</code></td><td>Gestionar su propio account: editar nombre y <code>capture_config_default</code>, listar/suspender usuarios, invitar doctores (solo business), ver overview y uso del account.</td></tr>
+      <tr><td><span class="badge b-blue">member</span></td><td><code>account_role</code></td><td>Doctor del flujo clínico: graba consultas, gestiona sus propios pacientes y su <code>capture_config</code>. No ve datos de otros doctores.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Estos roles se aplican en el backend con dependencias de FastAPI: <code>get_current_user</code> (autenticación), <code>require_account_owner</code> (owner o super_admin) y <code>require_super_admin</code>. Un usuario puede además estar <code>active</code>, <code>invited</code> o <code>suspended</code>; los suspendidos no pueden iniciar sesión.</p>
+
+  <h4 style="font-size:16px;margin:26px 0 12px">Flujo de invitación (business)</h4>
+  <div class="tline">
+    <div class="ev"><span class="d">POST /api/account/invitations</span><br><b>1 · El owner invita</b><br>Crea una <code>AccountInvitation</code> con un token único y vencimiento a <strong>7 días</strong>. Valida cupo (<code>max_users</code>), que el email no tenga ya cuenta y que no exista otra invitación pendiente. Devuelve una <code>invitation_url</code> tipo <code>{FRONTEND_URL}/invite/&lt;token&gt;</code>.</div>
+    <div class="ev"><span class="d">GET /api/auth/invitations/:token</span><br><b>2 · El invitado abre el link</b><br>Endpoint <strong>público</strong>: muestra a qué account y plan se le invita y si la invitación sigue vigente.</div>
+    <div class="ev"><span class="d">POST /api/auth/invitations/:token/accept</span><br><b>3 · Acepta y queda dentro</b><br>Crea el user como <code>member</code> del account, le provisiona su subcarpeta de Drive, copia el <code>capture_config_default</code> del account y marca la invitación como aceptada. Devuelve un JWT: el doctor ya entra logueado.</div>
+  </div>
+
+  <h4 style="font-size:16px;margin:26px 0 12px">Aislamiento de datos (multitenancy)</h4>
+  <p>Cada <code>Patient</code> y <code>Consultation</code> guarda <code>user_id</code> y <code>account_id</code>. Las consultas se filtran siempre por el usuario autenticado, así que un doctor solo ve lo suyo. El plan business ofrece además un <code>GET /api/account/overview</code> con <strong>metadata mínima</strong> (nombre del paciente, doctor, conteo y última consulta) sin exponer documento, contacto, transcript ni extracción.</p>
+
+  <h4 style="font-size:16px;margin:26px 0 12px">Panel de super admin</h4>
+  <p>Bajo <code>/api/admin/*</code> y la sub-app <code>/platform</code>: listar y crear accounts, editar cuotas y estado, gestionar usuarios, ver <strong>uso agregado</strong> (consultas, tokens, segundos de transcripción) y un resumen de <strong>billing</strong> (placeholders de Stripe). La <strong>impersonación</strong> emite un token corto (1 hora) con el claim <code>impersonated_by</code> para actuar como otro doctor y diagnosticar problemas.</p>
+</section>
+
+<nav class="pagenav">
+  <a href="06-captura-configurable.html">← Captura configurable</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="08-base-datos.html">Base de datos →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

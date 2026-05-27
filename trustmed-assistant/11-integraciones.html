@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integraciones externas — Trustmed Assistant Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Assistant</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-flujo-clinico.html">Flujo clínico</a>
+  <a href="05-pipeline-ia.html">Pipeline de IA</a>
+  <a href="06-captura-configurable.html">Captura configurable</a>
+  <a href="07-multitenant-roles.html">Multitenant y roles</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html" class="active">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">11 · Infraestructura</h2>
+  <h3 class="title">Integraciones externas</h3>
+  <p class="sub">Tres servicios hacen el trabajo pesado: Google Drive guarda los audios, ElevenLabs los transcribe y Claude los estructura. Así habla Trustmed Assistant con cada uno.</p>
+
+  <h4 style="font-size:18px;margin:0 0 12px"><span class="badge b-blue">Google Drive</span> Almacenamiento de audios</h4>
+  <p>Se autentica con una <strong>service account</strong> (JSON en <code>secrets/gdrive-sa.json</code> en local, o en la variable <code>GOOGLE_SA_JSON</code> en producción). El scope es amplio (<code>drive</code>) para poder leer la metadata de una carpeta compartida. La carpeta raíz debe ser una <strong>Shared Drive</strong> con la SA como <em>Content Manager</em>.</p>
+  <div class="grid g2" style="margin:14px 0">
+    <div class="card"><h4>Jerarquía de carpetas</h4><p>Bajo la carpeta raíz se crea una por account (<code>create_account_folder</code>) y, en business, una subcarpeta por doctor (<code>create_user_folder</code>). Las operaciones son <strong>idempotentes</strong>: si la carpeta existe por nombre + parent, se reutiliza.</p></div>
+    <div class="card"><h4>Subida resumable</h4><p><code>create_resumable_session</code> pide a Drive una URL de sesión (header <code>Location</code>) propagando el <code>Origin</code> del frontend para permitir el <code>PUT</code> cross-origin. El navegador sube el blob directo; el backend luego lo baja con <code>download_file</code> para procesarlo.</p></div>
+  </div>
+
+  <h4 style="font-size:18px;margin:26px 0 12px"><span class="badge b-blue">ElevenLabs Scribe</span> Transcripción</h4>
+  <p>Una llamada <code>POST</code> a <code>speech-to-text</code> con el audio como <em>multipart</em> (<code>httpx</code>, timeout de 300&nbsp;s). Parámetros usados:</p>
+  <div class="tw"><table>
+    <thead><tr><th>Parámetro</th><th>Valor</th><th>Por qué</th></tr></thead>
+    <tbody>
+      <tr><td><code>model_id</code></td><td><code>scribe_v1</code></td><td>Modelo de transcripción.</td></tr>
+      <tr><td><code>language_code</code></td><td><code>spa</code></td><td>Español.</td></tr>
+      <tr><td><code>diarize</code></td><td><code>true</code></td><td>Etiqueta cada palabra con <code>speaker_id</code>.</td></tr>
+      <tr><td><code>timestamps_granularity</code></td><td><code>word</code></td><td>Timestamps por palabra; permite reconstruir turnos.</td></tr>
+    </tbody>
+  </table></div>
+  <p>La respuesta trae <code>text</code> y <code>words[]</code>. Se asume <code>speaker_0 = MÉDICO</code> y <code>speaker_1 = PACIENTE</code>; si el audio llega invertido se nota en la extracción y se corrige pasando un mapeo <code>speakers=</code> al formateador. Recuerda que el audio se <strong>normaliza con ffmpeg</strong> antes (ver <a href="05-pipeline-ia.html">Pipeline de IA</a>) para no alimentar silencio que haga alucinar a Scribe.</p>
+
+  <h4 style="font-size:18px;margin:26px 0 12px"><span class="badge b-violet">Anthropic Claude</span> Extracción estructurada</h4>
+  <p>SDK oficial <code>anthropic</code>. El modelo es configurable por <code>ANTHROPIC_MODEL</code> — el <code>.env.example</code> sugiere <code>claude-haiku-4-5</code> por ser ~3× más barato que Sonnet con calidad similar en extracción. Se llama con una <strong>herramienta forzada</strong> (<code>tool_choice</code>) cuyo schema se arma desde el <code>capture_config</code> y se marca con <code>cache_control: ephemeral</code> para aprovechar <em>prompt caching</em>. El detalle está en <a href="06-captura-configurable.html">Captura configurable</a>.</p>
+
+  <div class="card" style="margin-top:18px">
+    <h4>Claves y configuración</h4>
+    <p style="margin-bottom:0">Todas las credenciales viven en variables de entorno: <code>GOOGLE_SA_JSON(_PATH)</code> + <code>GOOGLE_DRIVE_FOLDER_ID</code>, <code>ELEVENLABS_API_KEY</code> y <code>ANTHROPIC_API_KEY</code> + <code>ANTHROPIC_MODEL</code>. Si falta alguna, el endpoint correspondiente devuelve un error explícito (503/RuntimeError) en lugar de fallar en silencio. Ver <a href="14-operacion.html">Operación</a>.</p>
+  </div>
+</section>
+
+<nav class="pagenav">
+  <a href="10-frontend.html">← Frontend</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="12-seguridad.html">Seguridad →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

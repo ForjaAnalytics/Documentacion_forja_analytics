@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resumen ejecutivo — Trustmed Assistant Docu.Técnica</title>
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Assistant</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html" class="active">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-flujo-clinico.html">Flujo clínico</a>
+  <a href="05-pipeline-ia.html">Pipeline de IA</a>
+  <a href="06-captura-configurable.html">Captura configurable</a>
+  <a href="07-multitenant-roles.html">Multitenant y roles</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">01 · Visión general</h2>
+  <h3 class="title">Resumen ejecutivo</h3>
+  <p class="sub">Qué problema resuelve Trustmed Assistant y cómo lo hace, en una página.</p>
+
+  <p>Documentar una consulta médica consume tiempo clínico: el médico escucha, examina y a la vez teclea. <strong>Trustmed Assistant</strong> (nombre interno del backend: <code>Cuidarte Voice</code>) invierte ese orden. El médico solo <strong>graba</strong> la consulta —o narra una nota de evolución en ronda— y el sistema produce automáticamente una <strong>historia clínica estructurada y editable</strong>, lista para revisar y exportar a Word. Está pensado para <strong>cuidados paliativos</strong>, donde la valoración integral (síntomas, antecedentes, revisión por sistemas) es extensa y repetitiva de transcribir a mano.</p>
+
+  <div class="grid g2" style="margin:22px 0">
+    <div class="card">
+      <h4><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 3v18M3 12h18"/></svg></span> El problema</h4>
+      <p>La documentación clínica es lenta y propensa a omisiones. En paliativos cada visita recoge decenas de campos (revisión por sistemas calificada 0–10, antecedentes, plan), difíciles de capturar mientras se atiende al paciente.</p>
+    </div>
+    <div class="card">
+      <h4><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg></span> La solución</h4>
+      <p>Grabar una vez. La IA transcribe con diarización (médico vs. paciente) y extrae los campos definidos por el médico. El resultado queda editable; nada se publica sin que el clínico lo revise.</p>
+    </div>
+  </div>
+
+  <h4 style="font-size:18px;margin:26px 0 12px">Cómo lo hace</h4>
+  <div class="pipe">
+    <div class="stage"><div class="sn">PASO 1</div><div class="st">Captura</div><div class="sw">MediaRecorder</div><div class="rf">Audio en el navegador</div></div>
+    <div class="stage"><div class="sn">PASO 2</div><div class="st">Subida</div><div class="sw">Drive resumable</div><div class="rf">PUT directo, sin pasar por el backend</div></div>
+    <div class="stage"><div class="sn">PASO 3</div><div class="st">Transcripción</div><div class="sw">ElevenLabs Scribe</div><div class="rf">ES-CO, diarización por hablante</div></div>
+    <div class="stage"><div class="sn">PASO 4</div><div class="st">Extracción</div><div class="sw">Claude tool use</div><div class="rf">Schema = capture_config</div></div>
+    <div class="stage"><div class="sn">PASO 5</div><div class="st">Revisión</div><div class="sw">React UI</div><div class="rf">Editar y exportar a Word</div></div>
+  </div>
+
+  <p style="margin-top:20px">El sistema acepta dos tipos de audio y los trata por igual: un <strong>diálogo médico–paciente</strong> (consulta cara a cara) o un <strong>monólogo del médico</strong> narrando una bitácora (típico de ronda hospitalaria). El prompt de extracción está diseñado para recoger los datos sin importar quién los enuncie.</p>
+
+  <h4 style="font-size:18px;margin:26px 0 12px">De un vistazo</h4>
+  <div class="grid g3">
+    <div class="card"><p class="kpi">2<small>aplicaciones: backend FastAPI + frontend React</small></p></div>
+    <div class="card"><p class="kpi">5<small>tablas de datos (accounts, users, patients, consultations, invitations)</small></p></div>
+    <div class="card"><p class="kpi">3<small>servicios de IA / nube: Drive, ElevenLabs, Claude</small></p></div>
+  </div>
+
+  <p style="margin-top:22px"><strong>Lo que NO hace.</strong> No diagnostica ni infiere: solo extrae lo que está explícito en el audio (ver <a href="06-captura-configurable.html">Captura configurable</a>). No reemplaza el criterio médico; produce un borrador que el clínico edita y aprueba.</p>
+</section>
+
+<nav class="pagenav">
+  <span class="spacer"></span>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="02-glosario.html">Glosario →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>
