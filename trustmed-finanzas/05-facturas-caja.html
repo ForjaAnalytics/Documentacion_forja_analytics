@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Facturas y caja — Trustmed Finanzas Docu.Técnica</title>
+<link rel="icon" type="image/webp" href="../assets/logo-forja.webp">
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Finanzas</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-onboarding-wizard.html">Onboarding y wizard</a>
+  <a href="05-facturas-caja.html" class="active">Facturas y caja</a>
+  <a href="06-pricing-trustmap.html">Pricing y TrustMap</a>
+  <a href="07-planes-ia.html">Planes con IA</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">05 · El sistema</h2>
+  <h3 class="title">Facturas y caja</h3>
+  <p class="sub">Dos módulos hermanos: <strong>facturas</strong> describe lo que el consultorio debe cobrar; <strong>caja</strong> describe el flujo real de dinero que entra y sale. Juntos permiten ver el desfase entre facturar y cobrar.</p>
+
+  <h4 style="font-size:18px;margin:0 0 12px"><span class="badge b-em">Facturas</span> Lo que se debe cobrar</h4>
+  <p>Una factura guarda quién paga (<code>cliente_id</code>, <code>tipo_pagador_id</code>), qué se cobra (<code>procedimiento_id</code>) y por cuánto, separando lo facturado de lo realmente cobrado:</p>
+  <ul>
+    <li><code>valor_facturado</code> — el monto emitido en la factura.</li>
+    <li><code>valor_pagado</code> — el monto realmente cobrado a la fecha.</li>
+    <li><code>estado</code> — <code>pendiente</code> · <code>pagada</code> · <code>anulada</code> · <code>vencida</code>.</li>
+    <li>Fechas: <code>fecha</code> (emisión), <code>fecha_servicio</code> (cuándo se prestó), <code>fecha_pago</code>.</li>
+    <li>Composición monetaria: <code>monto_base</code>, <code>impuestos</code>, <code>descuentos</code>, <code>total</code>.</li>
+  </ul>
+
+  <h4 style="font-size:16px;margin:20px 0 10px">Carga masiva</h4>
+  <p>El caso principal de uso es subir el histórico desde un Excel: el usuario descarga la plantilla (<code>GET /facturas/template/download</code>), la rellena y la carga (<code>POST /facturas/upload/parse</code>). El backend valida la estructura y, al confirmar, persiste en bloque con <code>POST /facturas/bulk</code>. Antes de aceptar la carga hay unas <strong>condiciones mínimas</strong> para que el análisis posterior sea representativo:</p>
+  <div class="tw"><table>
+    <thead><tr><th>Validación</th><th>Mínimo</th><th>Por qué</th></tr></thead>
+    <tbody>
+      <tr><td>Cantidad de facturas</td><td><code>≥ 20</code></td><td>Muestra estadísticamente útil para tendencias.</td></tr>
+      <tr><td>Tipos de pagador distintos</td><td><code>≥ 3</code></td><td>Para comparar márgenes entre canales.</td></tr>
+      <tr><td>Procedimientos distintos</td><td><code>≥ 2</code></td><td>Evitar análisis de un solo servicio.</td></tr>
+      <tr><td>Rango temporal</td><td><code>≥ 3 meses</code></td><td>Captar estacionalidad y desfases de cobro.</td></tr>
+      <tr><td>Rango de monto por factura</td><td><code>$1.000 – $50.000.000</code></td><td>Filtra valores claramente erróneos.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:18px;margin:30px 0 12px"><span class="badge b-blue">Caja</span> Flujo real de dinero</h4>
+  <p>Módulo independiente para registrar todo lo que entra y sale del consultorio, no importa si está vinculado a una factura o no (compras del día, pagos en efectivo, transferencias, etc.). Cuatro entidades:</p>
+  <div class="grid g2">
+    <div class="card"><h4>Cuentas (<code>CuentaCaja</code>)</h4><p>Cada caja de efectivo, cuenta bancaria o tarjeta que maneje el consultorio. Tiene <code>saldo_inicial</code>, <code>saldo_actual</code> y una bandera <code>es_principal</code>. Tipo: <code>efectivo</code> · <code>banco</code> · <code>tarjeta</code> · <code>otro</code>.</p></div>
+    <div class="card"><h4>Categorías (<code>CategoriaCaja</code>)</h4><p>Categorías de entrada o salida (consultas, ventas, arriendo, nómina…). Hay categorías de sistema —comunes a todos— y categorías propias del consultorio; soportan jerarquía con <code>categoria_padre_id</code>.</p></div>
+    <div class="card"><h4>Movimientos (<code>MovimientoCaja</code>)</h4><p>El registro contable: <code>tipo</code> (entrada/salida), monto, fecha y hora, descripción, medio de pago, referencia, info del pagador o proveedor. Guarda <code>saldo_anterior</code> y <code>saldo_posterior</code> para auditoría.</p></div>
+    <div class="card"><h4>Transferencias (<code>TransferenciaCaja</code>)</h4><p>Movimiento entre dos cuentas del mismo consultorio. Estados: <code>pendiente</code> · <code>completada</code> · <code>cancelada</code>. Internamente se materializa como una salida de la cuenta origen y una entrada en la destino.</p></div>
+  </div>
+
+  <h4 style="font-size:16px;margin:24px 0 10px">Medios de pago</h4>
+  <p>Cada movimiento declara su medio para distinguir flujos:</p>
+  <p><code>efectivo</code> · <code>transferencia</code> · <code>tarjeta_debito</code> · <code>tarjeta_credito</code> · <code>cheque</code> · <code>nequi</code> · <code>daviplata</code> · <code>pse</code> · <code>otro</code></p>
+
+  <h4 style="font-size:16px;margin:24px 0 10px">Vínculo opcional con facturas</h4>
+  <p>Un <code>MovimientoCaja</code> puede llevar un <code>factura_id</code> que lo conecta con la factura que cobra (o que paga, en el caso de salidas). Esto permite a los reportes calcular la <strong>edad de cartera</strong> (cuánto tardaron en pagar las EPS frente a los particulares) y el porcentaje de facturado vs. realmente cobrado.</p>
+
+  <h4 style="font-size:16px;margin:24px 0 10px">Conciliación bancaria</h4>
+  <p>Cada movimiento tiene un flag <code>conciliado</code> y una <code>fecha_conciliacion</code>. La idea es marcar los movimientos confirmados con el extracto bancario, para que el saldo del sistema coincida con el real. También se puede adjuntar soporte (<code>tiene_soporte</code> + <code>url_soporte</code>).</p>
+
+  <h4 style="font-size:16px;margin:24px 0 10px">Reportes del módulo</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Endpoint</th><th>Qué muestra</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET /caja/resumen</code></td><td>Totales agregados: entradas, salidas, saldo por cuenta y saldo total.</td></tr>
+      <tr><td><code>GET /caja/flujo-caja</code></td><td>Flujo de caja periódico (cash flow) con filtros de fecha.</td></tr>
+      <tr><td><code>GET /caja/reportes/categoria</code></td><td>Desglose por categoría: dónde se concentran ingresos y egresos.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:24px 0 10px">UI · página <code>/caja</code></h4>
+  <p>El frontend agrupa el módulo en una sola vista con pestañas: <strong>Cuentas</strong>, <strong>Movimientos</strong>, <strong>Transferencias</strong>, <strong>Categorías</strong> y <strong>Reportes</strong>. El hook <code>useCaja()</code> centraliza las llamadas a la API y la cache local; <code>CurrencyInput</code> formatea valores en pesos colombianos.</p>
+</section>
+
+<nav class="pagenav">
+  <a href="04-onboarding-wizard.html">← Onboarding y wizard</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="06-pricing-trustmap.html">Pricing y TrustMap →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

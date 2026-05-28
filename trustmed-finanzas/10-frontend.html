@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Frontend — Trustmed Finanzas Docu.Técnica</title>
+<link rel="icon" type="image/webp" href="../assets/logo-forja.webp">
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Finanzas</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-onboarding-wizard.html">Onboarding y wizard</a>
+  <a href="05-facturas-caja.html">Facturas y caja</a>
+  <a href="06-pricing-trustmap.html">Pricing y TrustMap</a>
+  <a href="07-planes-ia.html">Planes con IA</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html" class="active">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">10 · Datos &amp; API</h2>
+  <h3 class="title">Frontend</h3>
+  <p class="sub">SPA en React 19 + TypeScript, sobre Vite, con Zustand para estado global, Tailwind para estilos y i18next para multi-idioma. Mapas con Leaflet, gráficas con ApexCharts y Recharts.</p>
+
+  <h4 style="font-size:16px;margin:0 0 12px">Estructura</h4>
+  <pre>src/
+  main.tsx              <span class="c"># entrada de React</span>
+  App.tsx               <span class="c"># BrowserRouter + rutas</span>
+  index.css             <span class="c"># Tailwind + estilos globales</span>
+  stores/
+    authStore.ts        <span class="c"># user, consultorio, token, isPremium</span>
+    wizardStore.ts      <span class="c"># progreso del onboarding</span>
+    languageStore.ts    <span class="c"># idioma activo (es/en)</span>
+  services/
+    api.ts              <span class="c"># cliente Axios + interceptors</span>
+    reporteService.ts   <span class="c"># helpers de reportes</span>
+  hooks/
+    useCaja.ts          <span class="c"># lógica del módulo caja</span>
+    usePricingIntelligence.ts
+    useCompetitiveAnalysis.ts
+  pages/                <span class="c"># ~24 páginas</span>
+    Landing.tsx · Login · Register · Wizard/ · Dashboard
+    Facturas · CargaFacturas · CargaArchivo · Caja
+    Reportes · Pagadores · Planes · PlanDetalle · GenerarPlan
+    PricingIntelligence · TrustMap · SimuladorEscenariosV2 · GuiaDeUso
+  components/
+    Layout · Sidebar · ProtectedRoute · PremiumOverlay
+    LanguageToggle · WhatsAppButton · CurrencyInput
+    guia/  · map/  · caja/  · common/
+  i18n/index.ts         <span class="c"># i18next config</span>
+  locales/{en,es}/      <span class="c"># 15+ archivos JSON de traducciones</span>
+  types/                <span class="c"># TypeScript interfaces</span></pre>
+
+  <h4 style="font-size:16px;margin:24px 0 12px">Cliente de API (<code>services/api.ts</code>)</h4>
+  <p>Axios con un <em>interceptor</em> que inyecta el header <code>Authorization: Bearer</code> con el JWT y otro que, ante un <strong>401</strong>, limpia el store y redirige a <code>/login</code>. La URL base se resuelve por <code>VITE_USE_LOCALHOST</code> + <code>VITE_PRODUCTION_API_URL</code>/<code>VITE_LOCALHOST_API_URL</code>, así dev y prod conviven sin tocar código.</p>
+
+  <h4 style="font-size:16px;margin:24px 0 12px">Estado global (Zustand)</h4>
+  <div class="grid g3">
+    <div class="card"><h4><code>authStore</code></h4><p><code>user</code>, <code>consultorio</code>, <code>token</code>, <code>isAuthenticated</code>, <code>isLoading</code>, <code>isPremium</code>. Persiste el token y el perfil para que la sesión sobreviva al refresh.</p></div>
+    <div class="card"><h4><code>wizardStore</code></h4><p>Paso actual, datos parciales por paso y banderas de validación. El backend sigue siendo la fuente de verdad: cada paso confirma antes de avanzar.</p></div>
+    <div class="card"><h4><code>languageStore</code></h4><p>Idioma actual (<code>es</code> / <code>en</code>). El <code>LanguageToggle</code> dispara el cambio y <code>i18next</code> recarga los textos sin recargar la SPA.</p></div>
+  </div>
+
+  <h4 style="font-size:16px;margin:24px 0 12px">Rutas (React Router 7)</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Ruta</th><th>Página</th><th>Acceso</th></tr></thead>
+    <tbody>
+      <tr><td><code>/landing</code> · <code>/tiers</code> · <code>/login</code> · <code>/register</code> · <code>/guia</code></td><td>Landing · Tiers · Login · Register · Guía</td><td>Públicas</td></tr>
+      <tr><td><code>/wizard</code></td><td>WizardContainer (5 pasos)</td><td>Auth + obligatoria hasta completar</td></tr>
+      <tr><td><code>/dashboard</code> · <code>/configuracion</code> · <code>/configuracion/editar</code></td><td>Dashboard · Configuración</td><td>Auth</td></tr>
+      <tr><td><code>/facturas</code> · <code>/facturas/carga</code> · <code>/facturas/archivo</code></td><td>Facturas y cargas</td><td>Auth (límites por tier)</td></tr>
+      <tr><td><code>/caja</code></td><td>Cash management</td><td>Auth</td></tr>
+      <tr><td><code>/reportes</code> · <code>/simulador</code></td><td>Reportes y simulador V2</td><td>Auth</td></tr>
+      <tr><td><code>/pricing-intelligence</code> · <code>/trustmap</code></td><td>Benchmark y mapa</td><td>Auth + premium</td></tr>
+      <tr><td><code>/generar-plan</code> · <code>/planes</code> · <code>/planes/:id</code></td><td>Planes con IA</td><td>Auth + premium</td></tr>
+      <tr><td><code>/pagadores</code> · <code>/documentacion-calculos</code></td><td>Tipos de pagador · Doc. de cálculos</td><td>Auth</td></tr>
+    </tbody>
+  </table></div>
+  <p><code>ProtectedRoute</code> aplica el guard de autenticación; <code>PremiumOverlay</code> bloquea visualmente las funciones premium en el tier <code>free</code> con una invitación a actualizar.</p>
+
+  <h4 style="font-size:16px;margin:24px 0 12px">Componentes y herramientas notables</h4>
+  <div class="grid g2">
+    <div class="card"><h4>Mapas — <code>components/map/</code></h4><p><code>MapView</code> con <code>react-leaflet</code> + clustering; <code>DoctorCard</code>, <code>FilterPanel</code>, <code>RadiusSelector</code>, <code>StatisticsPanel</code>, <code>RecommendationsPanel</code>.</p></div>
+    <div class="card"><h4>Gráficas</h4><p>ApexCharts y Recharts para KPIs, evolución temporal y desglose por categoría.</p></div>
+    <div class="card"><h4>Formularios</h4><p>React Hook Form + Zod para validación tipada en el cliente. <code>CurrencyInput</code> formatea pesos colombianos al vuelo.</p></div>
+    <div class="card"><h4>Guía interactiva — <code>components/guia/</code></h4><p>9+ piezas: hero, quick start, FAQ, glosario, búsqueda, atajos de teclado y progress tracker. Datos en <code>data/guiaData.ts</code>.</p></div>
+  </div>
+
+  <p style="margin-top:18px"><strong>Build (Vite 7).</strong> <code>npm run dev</code> levanta el dev server; <code>npm run build</code> hace <code>tsc</code> + <code>vite build</code>. La configuración de Tailwind vive en <code>tailwind.config.js</code> y el lint en <code>eslint.config.js</code>.</p>
+</section>
+
+<nav class="pagenav">
+  <a href="09-api.html">← API REST</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="11-integraciones.html">Integraciones externas →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

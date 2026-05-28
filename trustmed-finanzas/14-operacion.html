@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Operación — Trustmed Finanzas Docu.Técnica</title>
+<link rel="icon" type="image/webp" href="../assets/logo-forja.webp">
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Finanzas</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-onboarding-wizard.html">Onboarding y wizard</a>
+  <a href="05-facturas-caja.html">Facturas y caja</a>
+  <a href="06-pricing-trustmap.html">Pricing y TrustMap</a>
+  <a href="07-planes-ia.html">Planes con IA</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html" class="active">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">14 · Infraestructura</h2>
+  <h3 class="title">Operación</h3>
+  <p class="sub">Cómo levantar el sistema en local, qué variables necesita y los puntos delicados que conviene conocer antes de operarlo.</p>
+
+  <h4 style="font-size:16px;margin:0 0 10px">Puesta en marcha local</h4>
+  <pre><span class="c"># 1 · Base de datos (Postgres en Docker)</span>
+docker compose up -d        <span class="c"># dentro de backend/</span>
+
+<span class="c"># 2 · Backend (FastAPI)</span>
+cd backend
+python -m venv venv &amp;&amp; source venv/bin/activate    <span class="c"># o venv\Scripts\activate en Windows</span>
+pip install -r requirements.txt
+cp .env.example .env        <span class="c"># y completar las claves</span>
+alembic upgrade head        <span class="c"># aplica migraciones</span>
+uvicorn app.main:app --reload --port 8000
+
+<span class="c"># 3 · Frontend (Vite en :5173)</span>
+cd frontend
+npm install
+npm run dev
+
+<span class="c"># 4 · Ollama (IA local) — opcional, requerido solo para planes</span>
+ollama serve                <span class="c"># http://localhost:11434</span>
+ollama pull mistral</pre>
+  <p>El dev del frontend asume que el backend está en <code>http://localhost:8000/api/v1</code> (ver <code>VITE_LOCALHOST_API_URL</code>). Para usar el backend de producción mientras se desarrolla, basta poner <code>VITE_USE_LOCALHOST=false</code>.</p>
+
+  <h4 style="font-size:16px;margin:24px 0 10px">Variables de entorno</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Variable</th><th>Para qué</th></tr></thead>
+    <tbody>
+      <tr><td><code>PRODUCTION_DATABASE_URL</code></td><td>Cadena de conexión a Postgres. Si falta, el backend cae a SQLite local.</td></tr>
+      <tr><td><code>JWT_SECRET_KEY</code> · <code>JWT_ALGORITHM</code> · <code>JWT_ACCESS_TOKEN_EXPIRE_MINUTES</code></td><td>Firma y vida del token (HS256, 30 min por defecto).</td></tr>
+      <tr><td><code>APP_NAME</code> · <code>APP_VERSION</code> · <code>DEBUG</code> · <code>ENVIRONMENT</code></td><td>Identidad y entorno de la app.</td></tr>
+      <tr><td><code>CORS_ORIGINS</code></td><td>Lista de orígenes permitidos por CORS.</td></tr>
+      <tr><td><code>LOG_LEVEL</code></td><td><code>INFO</code> en dev, <code>WARNING</code> en producción.</td></tr>
+      <tr><td><code>OLLAMA_HOST</code> · <code>OLLAMA_MODEL</code> · <code>OLLAMA_TEMPERATURA</code> · <code>OLLAMA_TIMEOUT</code></td><td>Configuración del servidor de IA local.</td></tr>
+      <tr><td><code>VITE_USE_LOCALHOST</code> <span class="badge b-amber">frontend</span></td><td>Si <code>true</code>, usa <code>VITE_LOCALHOST_API_URL</code>; si <code>false</code>, usa <code>VITE_PRODUCTION_API_URL</code>.</td></tr>
+      <tr><td><code>VITE_PRODUCTION_API_URL</code> · <code>VITE_LOCALHOST_API_URL</code> <span class="badge b-amber">frontend</span></td><td>URLs base del backend para cada entorno.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:24px 0 10px">Testing</h4>
+  <p>Tests con <code>pytest</code> en <code>backend/tests/</code>. Hay tests unitarios del servicio de auth (9/9 passing). Para correrlos:</p>
+  <pre>cd backend
+pytest tests/ -v
+pytest --cov=app --cov-report=html      <span class="c"># reporte de cobertura</span></pre>
+
+  <h4 style="font-size:16px;margin:24px 0 10px">Migraciones de base de datos</h4>
+  <pre><span class="c"># Crear nueva migración a partir de cambios en los modelos</span>
+alembic revision --autogenerate -m <span class="s">"descripcion del cambio"</span>
+
+<span class="c"># Aplicar pendientes</span>
+alembic upgrade head
+
+<span class="c"># Volver una revisión</span>
+alembic downgrade -1</pre>
+  <p>En producción se aplican solas: el <code>Procfile</code> arranca con <code>alembic upgrade head</code> antes de Uvicorn.</p>
+
+  <h4 style="font-size:16px;margin:24px 0 12px">Puntos delicados</h4>
+  <div class="grid g2">
+    <div class="card"><h4>Mínimos de carga de facturas</h4><p>La validación rechaza cargas con menos de 20 facturas, 3 pagadores o 3 meses. Si un usuario reporta que el bulk falla, suele ser por mínimos no cumplidos o por el rango de monto ($1.000 – $50.000.000) que filtra cifras claramente erróneas.</p></div>
+    <div class="card"><h4>Ollama no es opcional para planes</h4><p>Sin Ollama corriendo, <code>POST /planes</code> devuelve 503. Si la generación de un plan es lenta o expira, conviene revisar <code>OLLAMA_TIMEOUT</code> y el modelo configurado (modelos más grandes tardan más).</p></div>
+    <div class="card"><h4>Saldo de caja desincronizado</h4><p>Los movimientos guardan <code>saldo_anterior</code> y <code>saldo_posterior</code> para auditoría. Si el saldo de una cuenta no cuadra, lo más rápido es ordenar sus movimientos por fecha y verificar continuidad; un cambio manual en la DB pierde la cadena.</p></div>
+    <div class="card"><h4>Fallback a SQLite</h4><p>En local, si no hay <code>PRODUCTION_DATABASE_URL</code> se usa SQLite. Comodísimo para arrancar, pero algunas funciones (JSON path queries, performance del bulk) sí difieren de Postgres: para pruebas serias usar Docker.</p></div>
+  </div>
+
+  <p style="margin-top:18px"><strong>Observabilidad.</strong> Los logs se emiten en formato JSON (<code>python-json-logger</code>) por request y por evento de negocio; el nivel se controla con <code>LOG_LEVEL</code>. El frontend reporta errores 401/5xx al usuario y limpia la sesión cuando es necesario.</p>
+
+  <p><strong>Documentación operativa adicional</strong> en el propio repo del backend: <code>RAILWAY_DEPLOYMENT.md</code>, <code>DATABASE_MIGRATION_GUIDE.md</code>, <code>OLLAMA_SETUP.md</code> y <code>OLLAMA_INTEGRATION.md</code>.</p>
+</section>
+
+<nav class="pagenav">
+  <a href="13-stack-deploy.html">← Stack &amp; Deploy</a>
+  <a class="idx" href="index.html">Índice</a>
+  <span class="spacer"></span>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

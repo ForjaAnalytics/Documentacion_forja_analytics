@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Onboarding y wizard — Trustmed Finanzas Docu.Técnica</title>
+<link rel="icon" type="image/webp" href="../assets/logo-forja.webp">
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Finanzas</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-onboarding-wizard.html" class="active">Onboarding y wizard</a>
+  <a href="05-facturas-caja.html">Facturas y caja</a>
+  <a href="06-pricing-trustmap.html">Pricing y TrustMap</a>
+  <a href="07-planes-ia.html">Planes con IA</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">04 · El sistema</h2>
+  <h3 class="title">Onboarding y wizard</h3>
+  <p class="sub">El recorrido desde el registro hasta tener el consultorio configurado y listo para cargar facturas. Cinco pasos con valores por defecto inteligentes y persistencia incremental.</p>
+
+  <h4 style="font-size:16px;margin:0 0 12px">Registro</h4>
+  <p>El usuario se crea con email + contraseña + nombre. <code>POST /api/v1/auth/register</code> crea el <code>User</code> y, según el flujo, también un <code>Consultorio</code> inicial. La contraseña se guarda solo como hash bcrypt; el login devuelve un JWT y los datos básicos de usuario y consultorio.</p>
+
+  <h4 style="font-size:16px;margin:22px 0 12px">El wizard, paso por paso</h4>
+  <div class="pipe">
+    <div class="stage"><div class="sn">PASO 1</div><div class="st">Operación</div><div class="sw">/wizard/paso-1</div><div class="rf">horas, días, capacidad, especialidad</div></div>
+    <div class="stage"><div class="sn">PASO 2</div><div class="st">Costos</div><div class="sw">/wizard/paso-2</div><div class="rf">médico, enfermera, fijos, variables</div></div>
+    <div class="stage"><div class="sn">PASO 3</div><div class="st">Procedimientos</div><div class="sw">/wizard/paso-3</div><div class="rf">nombre, tiempo, costo materiales</div></div>
+    <div class="stage"><div class="sn">PASO 4</div><div class="st">Tarifas</div><div class="sw">/wizard/paso-4</div><div class="rf">precio y copago por tipo de pagador</div></div>
+    <div class="stage"><div class="sn">PASO 5</div><div class="st">Confirmar</div><div class="sw">/wizard/confirmar</div><div class="rf">revisión final y persistencia</div></div>
+  </div>
+
+  <div class="grid g2" style="margin-top:18px">
+    <div class="card">
+      <h4>Paso 1 · Datos operativos</h4>
+      <p>Horas semanales de atención, días laborables, capacidad máxima por jornada, tiempo medio por consulta, margen objetivo y la <strong>especialidad</strong> del consultorio. La especialidad es la pieza clave: dispara los defaults de los pasos siguientes.</p>
+    </div>
+    <div class="card">
+      <h4>Paso 2 · Costos mensuales</h4>
+      <p>Nómina (médico, enfermera, auxiliares), costos fijos (arriendo, servicios, software) y costos variables. La <code>Configuracion</code> que se persiste sirve después a los reportes para calcular márgenes reales por procedimiento y por tipo de pagador.</p>
+    </div>
+    <div class="card">
+      <h4>Paso 3 · Procedimientos</h4>
+      <p>Cada procedimiento lleva <strong>nombre, código, tiempo en minutos, costo de materiales y precio sugerido</strong>. El sistema arranca con un catálogo por especialidad (<code>industy_defaults_service</code>) que el usuario edita; los nuevos se crean al vuelo.</p>
+    </div>
+    <div class="card">
+      <h4>Paso 4 · Tarifas por pagador</h4>
+      <p>Para cada combinación <em>procedimiento × tipo de pagador</em> (EPS, prepagada, particular…), el usuario define el <strong>precio</strong> y el <strong>copago</strong>. De ahí salen los márgenes que alimentan el módulo de pricing intelligence.</p>
+    </div>
+  </div>
+
+  <h4 style="font-size:16px;margin:26px 0 12px">Defaults por especialidad</h4>
+  <p>El endpoint <code>GET /wizard/defaults?especialidad=…</code> devuelve valores razonables para que el usuario no tenga que pensar el formulario en frío: procedimientos típicos, tarifas medias, costos de referencia. El usuario los ajusta a su realidad antes de confirmar.</p>
+
+  <pre><span class="c"># GET /api/v1/wizard/defaults?especialidad=cardiologia</span>
+{
+  <span class="f">"procedimientos"</span>: [
+    { <span class="f">"nombre"</span>: <span class="s">"Consulta de primera vez"</span>, <span class="f">"tiempo_minutos"</span>: 30, <span class="f">"precio_sugerido"</span>: 180000 },
+    { <span class="f">"nombre"</span>: <span class="s">"Electrocardiograma"</span>, <span class="f">"tiempo_minutos"</span>: 15, <span class="f">"precio_sugerido"</span>: 95000 },
+    ...
+  ],
+  <span class="f">"costos_referencia"</span>: { <span class="f">"medico_mensual"</span>: 8500000, <span class="f">"arriendo"</span>: 2200000, ... },
+  <span class="f">"tarifas_promedio"</span>: { <span class="f">"eps"</span>: 0.65, <span class="f">"prepagada"</span>: 0.85, <span class="f">"particular"</span>: 1.0 }
+}</pre>
+
+  <h4 style="font-size:16px;margin:26px 0 12px">Estado del wizard en el frontend</h4>
+  <p>Un <code>wizardStore</code> (Zustand) guarda el paso actual y los datos parciales para que el usuario pueda navegar entre pasos sin perder lo ya capturado. Cada paso confirma contra el backend antes de avanzar, así que aunque se cierre el navegador, el progreso vive en la base de datos.</p>
+
+  <h4 style="font-size:16px;margin:26px 0 12px">Tiers de suscripción</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Tier</th><th>Límites</th><th>Acceso</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-gray">free</span></td><td>Hasta <strong>30</strong> facturas históricas, 1 consultorio.</td><td>Wizard, facturas, caja básica y dashboard. Bloqueo en pricing intelligence y planes con IA.</td></tr>
+      <tr><td><span class="badge b-em">premium</span></td><td>Facturas ilimitadas.</td><td>Todo lo anterior + benchmark de precios, simulaciones, TrustMap completo y planes generados con IA.</td></tr>
+      <tr><td><span class="badge b-violet">enterprise</span></td><td>Multi-consultorio, soporte directo.</td><td>Todo lo de premium con onboarding asistido y cuotas configurables.</td></tr>
+    </tbody>
+  </table></div>
+  <p>El gatekeeping se hace en el backend (servicio bloquea o devuelve 403 si excede el límite) y en el frontend con <code>PremiumOverlay</code>, que muestra una pantalla translúcida con la invitación a actualizar.</p>
+</section>
+
+<nav class="pagenav">
+  <a href="03-arquitectura.html">← Arquitectura</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="05-facturas-caja.html">Facturas y caja →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

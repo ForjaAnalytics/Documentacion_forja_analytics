@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seguridad — Trustmed Finanzas Docu.Técnica</title>
+<link rel="icon" type="image/webp" href="../assets/logo-forja.webp">
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Finanzas</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-onboarding-wizard.html">Onboarding y wizard</a>
+  <a href="05-facturas-caja.html">Facturas y caja</a>
+  <a href="06-pricing-trustmap.html">Pricing y TrustMap</a>
+  <a href="07-planes-ia.html">Planes con IA</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html" class="active">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">12 · Infraestructura</h2>
+  <h3 class="title">Seguridad</h3>
+  <p class="sub">Las superficies sensibles del sistema y cómo se protege cada una. Datos financieros de consultorios médicos exigen aislamiento estricto entre tenants.</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <h4>Autenticación · JWT</h4>
+      <p>Tokens <strong>HS256</strong> emitidos con <code>python-jose</code>, firmados con <code>JWT_SECRET_KEY</code> y con expiración de <strong>30 minutos</strong> (<code>JWT_ACCESS_TOKEN_EXPIRE_MINUTES</code>). El frontend los envía en <code>Authorization: Bearer</code> y el interceptor de Axios cierra sesión ante un 401.</p>
+    </div>
+    <div class="card">
+      <h4>Contraseñas · bcrypt</h4>
+      <p>Hash con <code>passlib[bcrypt]</code>, salt por contraseña. El backend nunca almacena ni loguea la contraseña en claro; al cambiarla se valida la actual antes de rotar el hash.</p>
+    </div>
+    <div class="card">
+      <h4>Aislamiento por consultorio</h4>
+      <p>Cada query filtra por el <code>consultorio_id</code> del usuario autenticado. Antes de leer o modificar un recurso (factura, movimiento, plan…) el servicio verifica la <strong>propiedad</strong>; si no coincide, devuelve 404.</p>
+    </div>
+    <div class="card">
+      <h4>Tier gating</h4>
+      <p>Los límites de plan se imponen en el backend: la carga masiva rechaza pasar de 30 facturas en tier free, el pricing y los planes con IA exigen <code>is_premium</code>. El frontend acompaña con <code>PremiumOverlay</code> para no permitir clicks ciegos.</p>
+    </div>
+    <div class="card">
+      <h4>CORS y orígenes</h4>
+      <p>El middleware de FastAPI restringe los orígenes a los listados en <code>CORS_ORIGINS</code>: el dominio de producción (<code>finance.visittrustmed.com</code>) y los puertos de dev (<code>localhost:3000</code> y <code>5173</code>). Nada de comodines.</p>
+    </div>
+    <div class="card">
+      <h4>Validación de entrada</h4>
+      <p>Pydantic en el backend y Zod + React Hook Form en el frontend. La validación se hace en ambos lados: el cliente para UX, el servidor para seguridad. El error handler central evita filtrar stack traces.</p>
+    </div>
+    <div class="card">
+      <h4>SQL seguro</h4>
+      <p>Acceso a base de datos exclusivamente vía SQLAlchemy ORM con queries parametrizadas; no se concatenan strings. Las migraciones de Alembic mantienen las constraints y los <em>checks</em> de los enums.</p>
+    </div>
+    <div class="card">
+      <h4>Privacidad de la IA</h4>
+      <p>Ollama corre dentro de la infraestructura del usuario, así que los prompts con datos del consultorio <strong>no salen a una API de terceros</strong>. La trazabilidad queda en <code>GeneracionIALog</code> para depurar y auditar.</p>
+    </div>
+  </div>
+
+  <h4 style="font-size:16px;margin:26px 0 10px">Sesión en el navegador</h4>
+  <p>El token y el perfil se guardan en <code>localStorage</code>. Ante un 401 (token caducado o revocado), el interceptor de Axios limpia el store y redirige a <code>/login</code>, evitando dejar sesiones colgadas con tokens inservibles.</p>
+
+  <div class="card" style="margin-top:14px;border-color:rgba(217,119,6,.4)">
+    <h4><span class="badge b-amber">Pendientes / consideraciones</span></h4>
+    <p style="margin-bottom:0">El flujo de recuperación de contraseña por email (<code>email_service.py</code>) está como esqueleto y aún no es funcional. La verificación de email (<code>is_email_verified</code> en consultorios) está modelada pero no enforced en todos los gates. Para un despliegue de producción conviene revisar: cifrado/rotación del <code>JWT_SECRET_KEY</code>, registro de auditoría persistente para accesos administrativos y los acuerdos de tratamiento de datos según la normativa aplicable.</p>
+  </div>
+</section>
+
+<nav class="pagenav">
+  <a href="11-integraciones.html">← Integraciones externas</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

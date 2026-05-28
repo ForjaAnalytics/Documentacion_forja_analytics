@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Base de datos — Trustmed Finanzas Docu.Técnica</title>
+<link rel="icon" type="image/webp" href="../assets/logo-forja.webp">
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Finanzas</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-onboarding-wizard.html">Onboarding y wizard</a>
+  <a href="05-facturas-caja.html">Facturas y caja</a>
+  <a href="06-pricing-trustmap.html">Pricing y TrustMap</a>
+  <a href="07-planes-ia.html">Planes con IA</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html" class="active">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">08 · Datos &amp; API</h2>
+  <h3 class="title">Base de datos</h3>
+  <p class="sub">24 tablas en PostgreSQL 16 modeladas con SQLAlchemy 2.0. Agrupadas en cinco bloques: identidad y configuración, operación clínica, facturación, caja y planes con IA. Migraciones versionadas con Alembic.</p>
+
+  <h4 style="font-size:16px;margin:0 0 10px">Relaciones principales</h4>
+  <div class="erline"><span class="badge b-em">User</span> 1 ──&lt; N <span class="badge b-em">Consultorio</span> 1 ──&lt; N <span class="badge b-em">Configuracion · Procedimiento · Cliente · Doctor · CuentaCaja · …</span></div>
+  <div class="erline"><span class="badge b-em">Procedimiento</span> 1 ──&lt; N <span class="badge b-em">ProcedimientoTarifa</span> &gt;── 1 <span class="badge b-em">TipoPagador</span></div>
+  <div class="erline"><span class="badge b-em">Factura</span> &gt;── 1 <span class="badge b-em">Cliente · TipoPagador · Procedimiento</span> &nbsp;·&nbsp; <span class="badge b-em">MovimientoCaja</span> &gt;── 1 <span class="badge b-em">Factura?</span> (puente opcional)</div>
+  <div class="erline"><span class="badge b-em">PlanContexto</span> 1 ──&lt; N <span class="badge b-em">PlanAccion</span> 1 ──&lt; N <span class="badge b-em">PlanMilestone</span> 1 ──&lt; N <span class="badge b-em">PlanFase</span> 1 ──&lt; N <span class="badge b-em">PlanTarea</span> (autorreferencia para subtareas)</div>
+
+  <h4 style="font-size:16px;margin:26px 0 10px">Identidad y configuración</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Tabla</th><th>Campos destacados</th><th>Notas</th></tr></thead>
+    <tbody>
+      <tr><td><code>users</code></td><td><code>email</code>, <code>hashed_password</code>, <code>full_name</code>, <code>is_active</code>, <code>is_premium</code></td><td>Identidad. Email único; contraseña con bcrypt.</td></tr>
+      <tr><td><code>consultorios</code></td><td><code>user_id</code>, <code>nombre</code>, <code>especialidad</code>, contacto, <code>ruc_nit</code>, <code>plan_suscripcion</code>, <code>is_active</code></td><td>Tenant; todo cuelga de aquí.</td></tr>
+      <tr><td><code>configuraciones</code></td><td>horas/días, capacidad, costos (médico, enfermera, fijos, variables), <code>margen_objetivo</code>, <code>tiempo_consulta</code></td><td>1:1 con consultorio. Alimenta los reportes.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:22px 0 10px">Operación clínica</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Tabla</th><th>Campos destacados</th><th>Notas</th></tr></thead>
+    <tbody>
+      <tr><td><code>procedimientos</code></td><td><code>nombre</code>, <code>codigo</code>, <code>tiempo_minutos</code>, <code>costo_materiales</code>, <code>precio_sugerido</code>, <code>categoria</code></td><td>Catálogo de servicios.</td></tr>
+      <tr><td><code>procedimiento_tarifas</code></td><td><code>procedimiento_id</code>, <code>tipo_pagador_id</code>, <code>precio</code>, <code>copago</code></td><td>Precio real por canal de pago.</td></tr>
+      <tr><td><code>tipos_pagador</code></td><td><code>codigo</code>, <code>nombre</code>, <code>porcentaje_reembolso</code>, <code>tiempo_promedio_pago_dias</code></td><td>EPS, prepagada, particular, ARL, etc.</td></tr>
+      <tr><td><code>clientes</code></td><td>tipo y número de documento, nombre, fecha de nacimiento, género, contacto</td><td>Pacientes del consultorio.</td></tr>
+      <tr><td><code>doctores</code></td><td>nombre, especialidad, cédula profesional</td><td>Profesionales del consultorio.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:22px 0 10px">Facturación</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Tabla</th><th>Campos destacados</th><th>Notas</th></tr></thead>
+    <tbody>
+      <tr><td><code>facturas</code></td><td><code>numero_factura</code>, fechas, <code>monto_base</code>, <code>impuestos</code>, <code>descuentos</code>, <code>total</code>, <code>valor_facturado</code>, <code>valor_pagado</code>, <code>estado</code>, <code>metodo_pago</code></td><td>Vincula <code>cliente_id</code>, <code>tipo_pagador_id</code>, <code>procedimiento_id</code>.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:22px 0 10px">Caja</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Tabla</th><th>Campos destacados</th><th>Notas</th></tr></thead>
+    <tbody>
+      <tr><td><code>cuentas_caja</code></td><td><code>nombre</code>, <code>tipo</code> (efectivo/banco/tarjeta), <code>numero_cuenta</code>, <code>banco</code>, <code>saldo_inicial</code>, <code>saldo_actual</code>, <code>es_principal</code></td><td>Cajas, bancos, tarjetas.</td></tr>
+      <tr><td><code>categorias_caja</code></td><td><code>nombre</code>, <code>tipo</code> (entrada/salida), <code>categoria_padre_id</code>, <code>es_sistema</code>, <code>orden</code></td><td>Sistema + custom por consultorio. Jerárquicas.</td></tr>
+      <tr><td><code>movimientos_caja</code></td><td><code>tipo</code>, <code>monto</code>, fecha, hora, <code>medio_pago</code>, <code>saldo_anterior/posterior</code>, <code>conciliado</code>, <code>tiene_soporte</code>, <code>url_soporte</code></td><td><code>factura_id</code> opcional para vincular cobros.</td></tr>
+      <tr><td><code>transferencias_caja</code></td><td><code>cuenta_origen_id</code>, <code>cuenta_destino_id</code>, <code>monto</code>, <code>estado</code></td><td>Movimiento entre cuentas del mismo consultorio.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:22px 0 10px">Análisis y planes con IA</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Tabla</th><th>Campos destacados</th><th>Notas</th></tr></thead>
+    <tbody>
+      <tr><td><code>analisis</code></td><td><code>periodo_inicio/fin</code>, <code>tipo_analisis</code>, <code>metricas</code> (JSON), <code>resultados</code> (JSON)</td><td>Reportes guardados.</td></tr>
+      <tr><td><code>simulaciones</code></td><td><code>analisis_id</code>, <code>mix_simulado</code>, <code>resultados</code>, <code>comparacion</code></td><td>Escenarios sobre un análisis base.</td></tr>
+      <tr><td><code>plan_contextos</code></td><td>región, país, base de datos clientes, marketing, CRM, descuentos, promociones, ventas secundarias</td><td>Entrada del cuestionario para la IA.</td></tr>
+      <tr><td><code>planes_accion</code></td><td>nombre, descripción, <code>kpis_baseline/target/actual</code>, estado, progreso, fechas, <code>generado_por_ia</code></td><td>El roadmap.</td></tr>
+      <tr><td><code>plan_milestones</code> / <code>plan_fases</code> / <code>plan_tareas</code></td><td>número, nombre, descripción, fechas, progreso, KPIs · tareas con prioridad 1–5, horas estimadas/reales, métricas antes/después y subtareas</td><td>Jerarquía de avance.</td></tr>
+      <tr><td><code>plan_tarea_dependencias</code></td><td><code>tarea_id</code>, <code>tarea_dependencia_id</code></td><td>Grafo de dependencias entre tareas.</td></tr>
+      <tr><td><code>generacion_ia_logs</code></td><td>modelo, temperatura, prompt, respuesta cruda, tiempo, exitoso, error, advertencias</td><td>Auditoría de cada llamada al modelo.</td></tr>
+      <tr><td><code>plan_transiciones</code></td><td>(migración/transición de planes)</td><td>Para mover un plan entre estados.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="grid g2" style="margin-top:18px">
+    <div class="card">
+      <h4>Migraciones (Alembic)</h4>
+      <p>El esquema vive en <code>alembic/versions/</code>; nunca se usa <code>create_all</code>. El <code>Procfile</code> ejecuta <code>alembic upgrade head</code> antes de levantar la API en Railway, así cada despliegue aplica los pendientes. Revisiones recientes: campos de contexto del plan, <code>valor_facturado/valor_pagado</code> en facturas, tablas del módulo caja, tabla de doctores y limpieza de <code>porcentaje_copago</code> y <code>margen</code>.</p>
+    </div>
+    <div class="card">
+      <h4>JSON donde tiene sentido</h4>
+      <p>Las partes con forma variable —<code>metricas</code>, <code>resultados</code>, <code>kpis_*</code>, <code>prompt_enviado</code>, <code>respuesta_cruda</code>— se guardan como JSON. Mantiene la flexibilidad para evolucionar prompts y KPIs sin migraciones.</p>
+    </div>
+  </div>
+
+  <p style="margin-top:18px"><strong>Fallback en local.</strong> Si no se define <code>PRODUCTION_DATABASE_URL</code>, <code>config/database.py</code> cae a SQLite (<code>sqlite:///./test.db</code>) para que el dev pueda arrancar sin Docker ni Postgres a mano.</p>
+</section>
+
+<nav class="pagenav">
+  <a href="07-planes-ia.html">← Planes con IA</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="09-api.html">API REST →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

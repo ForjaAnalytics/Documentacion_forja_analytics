@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glosario — Trustmed Finanzas Docu.Técnica</title>
+<link rel="icon" type="image/webp" href="../assets/logo-forja.webp">
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Finanzas</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html" class="active">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-onboarding-wizard.html">Onboarding y wizard</a>
+  <a href="05-facturas-caja.html">Facturas y caja</a>
+  <a href="06-pricing-trustmap.html">Pricing y TrustMap</a>
+  <a href="07-planes-ia.html">Planes con IA</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">02 · Visión general</h2>
+  <h3 class="title">Glosario</h3>
+  <p class="sub">Doce términos que aparecen una y otra vez en el resto del documento. Si algo no te cuadra más adelante, probablemente esté definido aquí.</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <h4><span class="badge b-em">Consultorio</span> Tenant</h4>
+      <p>La unidad de aislamiento del sistema. Un <code>User</code> es dueño de uno o varios consultorios; todos los datos —facturas, caja, procedimientos, planes— cuelgan de un consultorio. Tiene un plan de suscripción (<code>plan_suscripcion</code>) que define los límites del tier.</p>
+    </div>
+    <div class="card">
+      <h4><span class="badge b-em">Tier</span> Plan de suscripción</h4>
+      <p><code>free</code> · <code>premium</code> · <code>enterprise</code>. El plan limita cuántas facturas se pueden cargar (p. ej. 30 en free) y el acceso a funciones avanzadas (IA, reportes premium). El frontend muestra un <code>PremiumOverlay</code> cuando se topa con el límite.</p>
+    </div>
+    <div class="card">
+      <h4><span class="badge b-em">Wizard</span> Onboarding en 5 pasos</h4>
+      <p>El flujo de configuración inicial: <strong>(1)</strong> datos operativos, <strong>(2)</strong> costos mensuales, <strong>(3)</strong> procedimientos, <strong>(4)</strong> tarifas por pagador, <strong>(5)</strong> confirmación. Cada paso usa valores por defecto según la especialidad.</p>
+    </div>
+    <div class="card">
+      <h4><span class="badge b-em">Tipo de pagador</span> Quién paga</h4>
+      <p>EPS, prepagada, particular, ARL, etc. Tiene un <code>porcentaje_reembolso</code> esperado y un <code>tiempo_promedio_pago_dias</code>. Sobre él se montan las <em>tarifas</em> de cada procedimiento.</p>
+    </div>
+    <div class="card">
+      <h4><span class="badge b-em">Procedimiento + tarifa</span> Servicio y su precio</h4>
+      <p><code>Procedimiento</code> describe el servicio (nombre, código, tiempo, costo de materiales, precio sugerido). <code>ProcedimientoTarifa</code> guarda el precio real por cada combinación <em>procedimiento × tipo de pagador</em>, con su copago.</p>
+    </div>
+    <div class="card">
+      <h4><span class="badge b-em">Factura</span> Lo que se debe cobrar</h4>
+      <p>Una transacción facturable. Guarda <code>valor_facturado</code> (lo emitido) frente a <code>valor_pagado</code> (lo cobrado realmente) y avanza por estados: <code>pendiente → pagada</code> · <code>anulada</code> · <code>vencida</code>. La carga masiva exige mínimos para que el análisis sea representativo.</p>
+    </div>
+    <div class="card">
+      <h4><span class="badge b-blue">Caja</span> Flujo real de dinero</h4>
+      <p>Módulo separado de facturas. Maneja <strong>cuentas</strong> (efectivo, banco, tarjeta), <strong>movimientos</strong> (entradas/salidas con medio de pago y categoría), <strong>transferencias</strong> entre cuentas y <strong>conciliación</strong> con el banco. El saldo se recalcula a cada movimiento.</p>
+    </div>
+    <div class="card">
+      <h4><span class="badge b-blue">Pricing intelligence</span> Inteligencia de precios</h4>
+      <p>Compara los precios del consultorio contra los del mercado en un radio configurable (5–100 km) y simula el impacto de cambios de precio en volumen e ingresos, en tres escenarios: conservador, moderado, optimista.</p>
+    </div>
+    <div class="card">
+      <h4><span class="badge b-blue">TrustMap</span> Mapa competitivo</h4>
+      <p>Vista geográfica de la competencia con Leaflet: cada doctor o clínica aparece como un punto, filtrable por especialidad, rango de precios y radio. Acompañado de panel de estadísticas y recomendaciones por zona.</p>
+    </div>
+    <div class="card">
+      <h4><span class="badge b-violet">Plan de acción</span> Roadmap del consultorio</h4>
+      <p>Lo que el sistema sugiere hacer. Estructura jerárquica: <code>PlanAccion → PlanMilestone → PlanFase → PlanTarea</code> (con subtareas y dependencias). Tiene KPIs <em>baseline / target / actual</em> y un progreso que cascadea de las tareas hacia arriba.</p>
+    </div>
+    <div class="card">
+      <h4><span class="badge b-violet">Ollama</span> IA local</h4>
+      <p>Servidor local de LLM (modelo por defecto: <code>mistral</code>) que el backend usa para generar los planes. Cada generación se registra en <code>GeneracionIALog</code> con prompt, respuesta cruda, tiempo y errores para auditoría.</p>
+    </div>
+    <div class="card">
+      <h4><span class="badge b-violet">Plan contexto</span> Entrada del plan</h4>
+      <p>El cuestionario previo a generar un plan: región, si el consultorio tiene base de datos de clientes, si hace marketing, si tiene CRM, si maneja descuentos o promociones, si vende productos secundarios, etc. Es el contexto que recibe Ollama.</p>
+    </div>
+  </div>
+
+  <p style="margin-top:22px"><strong>Aclaración de nombres.</strong> El producto se llama <strong>Trustmed Finanzas</strong>, pero el repositorio del backend usa internamente <code>FinanzasBackEnd</code>. Ambos nombran el mismo sistema. Convive con <a href="../trustmed-assistant/index.html">Trustmed Assistant</a> dentro del ecosistema Trustmed, pero son aplicaciones independientes (no comparten autenticación ni base de datos).</p>
+</section>
+
+<nav class="pagenav">
+  <a href="01-resumen.html">← Resumen ejecutivo</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="03-arquitectura.html">Arquitectura →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

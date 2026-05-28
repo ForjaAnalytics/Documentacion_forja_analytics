@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API REST — Trustmed Finanzas Docu.Técnica</title>
+<link rel="icon" type="image/webp" href="../assets/logo-forja.webp">
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Finanzas</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-onboarding-wizard.html">Onboarding y wizard</a>
+  <a href="05-facturas-caja.html">Facturas y caja</a>
+  <a href="06-pricing-trustmap.html">Pricing y TrustMap</a>
+  <a href="07-planes-ia.html">Planes con IA</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html" class="active">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">09 · Datos &amp; API</h2>
+  <h3 class="title">API REST</h3>
+  <p class="sub">FastAPI con prefijo <code>/api/v1</code>. Salvo el health-check, el login y el registro, todo exige un JWT en el header <code>Authorization: Bearer &lt;token&gt;</code>. Documentación interactiva en <code>/api/docs</code> (Swagger UI) y <code>/api/redoc</code>.</p>
+
+  <h4 style="font-size:16px;margin:0 0 10px">Salud y raíz</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Método</th><th>Ruta</th><th>Descripción</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/</code></td><td>Información de la API.</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/health</code></td><td>Liveness probe.</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/api/v1/auth/health</code></td><td>Health del módulo de auth.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:22px 0 10px"><code>auth</code> — registro y sesión</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Método</th><th>Ruta</th><th>Descripción</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-blue">POST</span></td><td><code>/auth/register</code></td><td>Crea el <code>User</code> (y el consultorio inicial según el flujo). Devuelve JWT.</td></tr>
+      <tr><td><span class="badge b-blue">POST</span></td><td><code>/auth/register-consultorio</code></td><td>Alternativa de registro con datos completos del consultorio.</td></tr>
+      <tr><td><span class="badge b-blue">POST</span></td><td><code>/auth/login</code></td><td>Valida email/contraseña con bcrypt; emite JWT (30 min) + perfil + consultorio.</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/auth/me</code></td><td>Perfil del usuario autenticado.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:22px 0 10px"><code>wizard</code> — onboarding <span class="badge b-amber" style="vertical-align:middle">JWT</span></h4>
+  <div class="tw"><table>
+    <thead><tr><th>Método</th><th>Ruta</th><th>Descripción</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/wizard/defaults</code></td><td>Defaults por especialidad para los pasos siguientes.</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/wizard/tipos-pagador</code></td><td>Tipos de pagador disponibles.</td></tr>
+      <tr><td><span class="badge b-blue">POST</span></td><td><code>/wizard/paso-1/datos-operativos</code></td><td>Persiste datos operativos del consultorio.</td></tr>
+      <tr><td><span class="badge b-blue">POST</span></td><td><code>/wizard/paso-2/costos-mensuales</code></td><td>Persiste costos.</td></tr>
+      <tr><td><span class="badge b-blue">POST</span></td><td><code>/wizard/paso-3/procedimientos</code></td><td>Catálogo de procedimientos.</td></tr>
+      <tr><td><span class="badge b-blue">POST</span></td><td><code>/wizard/paso-4/tarifas</code></td><td>Tarifas por procedimiento y tipo de pagador.</td></tr>
+      <tr><td><span class="badge b-blue">POST</span></td><td><code>/wizard/confirmar</code></td><td>Cierra el onboarding y habilita el dashboard.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:22px 0 10px"><code>facturas</code> · <code>procedimientos</code> · <code>clientes</code></h4>
+  <div class="tw"><table>
+    <thead><tr><th>Método</th><th>Ruta</th><th>Descripción</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-blue">POST</span></td><td><code>/facturas/bulk</code></td><td>Carga masiva con validaciones (≥20 facturas, ≥3 pagadores, ≥3 meses…).</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/facturas/historicas</code></td><td>Histórico paginado de facturas.</td></tr>
+      <tr><td><span class="badge b-blue">POST</span></td><td><code>/facturas/upload/parse</code></td><td>Parsea un Excel y devuelve la previsualización.</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/facturas/template/download</code></td><td>Plantilla Excel de carga.</td></tr>
+      <tr><td><span class="badge b-em">GET</span> / <span class="badge b-amber">PUT</span> / <span class="badge b-rose">DELETE</span></td><td><code>/facturas/{id}</code></td><td>CRUD por factura.</td></tr>
+      <tr><td colspan="3" style="background:var(--panel-2)"><strong>Procedimientos · </strong><code>POST</code> / <code>GET</code> / <code>GET /{id}</code> / <code>PUT /{id}</code> / <code>DELETE /{id}</code> en <code>/procedimientos</code>.</td></tr>
+      <tr><td colspan="3" style="background:var(--panel-2)"><strong>Clientes · </strong><code>POST</code> / <code>GET</code> / <code>GET /{id}</code> / <code>PUT /{id}</code> / <code>DELETE /{id}</code> en <code>/clientes</code>.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:22px 0 10px"><code>caja</code> — cuentas, movimientos, transferencias <span class="badge b-amber" style="vertical-align:middle">JWT</span></h4>
+  <div class="tw"><table>
+    <thead><tr><th>Recurso</th><th>Operaciones</th></tr></thead>
+    <tbody>
+      <tr><td><code>/caja/cuentas</code></td><td><code>POST</code> · <code>GET</code> · <code>GET /{id}</code> · <code>PUT /{id}</code> · <code>DELETE /{id}</code></td></tr>
+      <tr><td><code>/caja/movimientos</code></td><td><code>POST</code> · <code>GET</code> (filtros por fecha, cuenta, categoría) · <code>GET /{id}</code> · <code>PUT /{id}</code> · <code>DELETE /{id}</code></td></tr>
+      <tr><td><code>/caja/categorias</code></td><td><code>POST</code> · <code>GET</code> · <code>PUT /{id}</code> · <code>DELETE /{id}</code></td></tr>
+      <tr><td><code>/caja/transferencias</code></td><td><code>POST</code> · <code>GET</code> · <code>PUT /{id}</code> (cambia estado)</td></tr>
+      <tr><td>Reportes</td><td><code>GET /caja/resumen</code> · <code>GET /caja/flujo-caja</code> · <code>GET /caja/reportes/categoria</code></td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:22px 0 10px"><code>reportes</code> · <code>pricing</code> · <code>trustmap</code> <span class="badge b-amber" style="vertical-align:middle">JWT</span></h4>
+  <div class="tw"><table>
+    <thead><tr><th>Método</th><th>Ruta</th><th>Descripción</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/reportes/analytics</code></td><td>KPIs financieros con filtros de fecha.</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/reportes/pdf</code></td><td>Genera el informe en PDF (ReportLab + Matplotlib).</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/pricing/benchmark</code></td><td>Posición del consultorio frente al mercado (radio configurable).</td></tr>
+      <tr><td><span class="badge b-blue">POST</span></td><td><code>/pricing/simulate</code></td><td>Simula el impacto de un cambio de precio en 3 escenarios.</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/pricing/recomendaciones</code></td><td>Sugerencias derivadas del benchmark.</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/trustmap/user-context</code></td><td>Centra el mapa en el contexto del usuario.</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/trustmap/competencia</code></td><td>Competidores en el radio seleccionado.</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/trustmap/estadisticas</code></td><td>Agregados de la zona.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:22px 0 10px"><code>planes</code> — roadmap jerárquico <span class="badge b-amber" style="vertical-align:middle">JWT</span></h4>
+  <div class="tw"><table>
+    <thead><tr><th>Método</th><th>Ruta</th><th>Descripción</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-blue">POST</span></td><td><code>/planes</code></td><td>Crea un plan: arma el prompt, llama a Ollama y persiste el JSON jerárquico.</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/planes</code></td><td>Lista los planes del consultorio.</td></tr>
+      <tr><td><span class="badge b-em">GET</span></td><td><code>/planes/{id}</code></td><td>Detalle completo con milestones, fases y tareas.</td></tr>
+      <tr><td><span class="badge b-amber">PUT</span></td><td><code>/planes/{id}</code></td><td>Editar plan.</td></tr>
+      <tr><td><span class="badge b-amber">PATCH</span></td><td><code>/planes/{id}/progreso</code></td><td>Actualiza progreso (recalcula en cascada).</td></tr>
+      <tr><td colspan="3" style="background:var(--panel-2)"><strong>Sub-rutas anidadas · </strong><code>/planes/{id}/milestones</code>, <code>…/milestones/{mid}/fases</code>, <code>…/fases/{fid}/tareas</code> con sus <code>POST</code> y <code>PUT</code> correspondientes.</td></tr>
+    </tbody>
+  </table></div>
+
+  <p style="margin-top:18px"><strong>Esquema y validación.</strong> Cada endpoint tiene su par de schemas Pydantic en <code>app/schemas/</code> que documenta entrada y salida en Swagger automáticamente. Los errores se centralizan en <code>middlewares/error_handler.py</code> para no filtrar información sensible.</p>
+</section>
+
+<nav class="pagenav">
+  <a href="08-base-datos.html">← Base de datos</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="10-frontend.html">Frontend →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

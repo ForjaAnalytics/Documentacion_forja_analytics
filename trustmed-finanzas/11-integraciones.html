@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integraciones externas — Trustmed Finanzas Docu.Técnica</title>
+<link rel="icon" type="image/webp" href="../assets/logo-forja.webp">
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Finanzas</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-onboarding-wizard.html">Onboarding y wizard</a>
+  <a href="05-facturas-caja.html">Facturas y caja</a>
+  <a href="06-pricing-trustmap.html">Pricing y TrustMap</a>
+  <a href="07-planes-ia.html">Planes con IA</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html" class="active">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">11 · Infraestructura</h2>
+  <h3 class="title">Integraciones externas</h3>
+  <p class="sub">El sistema apoya en cinco servicios o librerías externas. Solo una llama a una API ajena: Ollama, y corre <strong>en local</strong>. El resto son librerías que el backend usa para generar archivos o el frontend para visualizar.</p>
+
+  <h4 style="font-size:18px;margin:0 0 12px"><span class="badge b-violet">Ollama</span> Generación de planes con IA local</h4>
+  <p>Servidor de modelos LLM corriendo en la misma red. El backend lo consume por HTTP plano (<code>http://localhost:11434</code> por defecto) con el SDK <code>ollama</code> (0.4.4). El modelo por defecto es <strong>Mistral</strong>, pero es configurable.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Variable</th><th>Para qué</th><th>Default</th></tr></thead>
+    <tbody>
+      <tr><td><code>OLLAMA_HOST</code></td><td>URL del servidor de Ollama.</td><td><code>http://localhost:11434</code></td></tr>
+      <tr><td><code>OLLAMA_MODEL</code></td><td>Modelo a usar.</td><td><code>mistral</code></td></tr>
+      <tr><td><code>OLLAMA_TEMPERATURA</code></td><td>Creatividad de la respuesta (0–1).</td><td><code>0.7</code></td></tr>
+      <tr><td><code>OLLAMA_TIMEOUT</code></td><td>Tiempo máximo de generación en segundos.</td><td><code>120</code></td></tr>
+    </tbody>
+  </table></div>
+  <p><strong>Privacidad:</strong> los datos del consultorio (facturación, costos, márgenes) viajan al modelo dentro del prompt pero <strong>no salen a una API de terceros</strong>. Si Ollama no responde, la generación falla y se devuelve un 503; cada intento queda en <code>GeneracionIALog</code> con su error.</p>
+
+  <h4 style="font-size:18px;margin:30px 0 12px"><span class="badge b-blue">Leaflet</span> Mapa competitivo</h4>
+  <p><code>leaflet</code> + <code>react-leaflet</code> + <code>react-leaflet-cluster</code> en el frontend, para el módulo TrustMap. Tiles públicos por defecto; el dataset de competidores se sirve desde el backend o desde un JSON estático en el MVP. No requiere API key.</p>
+
+  <h4 style="font-size:18px;margin:30px 0 12px"><span class="badge b-amber">ReportLab + Matplotlib</span> PDFs financieros</h4>
+  <p>El endpoint <code>GET /reportes/pdf</code> arma el informe con <code>reportlab</code> e incrusta gráficas generadas con <code>matplotlib</code>. El resultado se descarga directamente desde el navegador.</p>
+
+  <h4 style="font-size:18px;margin:30px 0 12px"><span class="badge b-amber">Pandas + Openpyxl</span> Plantilla y parser de Excel</h4>
+  <p>La carga masiva de facturas usa <code>openpyxl</code> para generar y leer la plantilla, y <code>pandas</code> para limpiar y validar las filas antes de persistirlas. La plantilla se descarga desde <code>GET /facturas/template/download</code>.</p>
+
+  <h4 style="font-size:18px;margin:30px 0 12px"><span class="badge b-gray">Email</span> Pendiente</h4>
+  <p>Existe un <code>email_service.py</code> esqueleto para envíos transaccionales (reset de contraseña, notificaciones, aprobación de planes). Aún no está integrado en los flujos; queda como gancho para cuando se conecte un proveedor (SES, SendGrid, etc.).</p>
+
+  <h4 style="font-size:16px;margin:26px 0 12px">Resumen de claves y configuración</h4>
+  <p>Todas las credenciales viven en variables de entorno (ver <a href="14-operacion.html">Operación</a>). Si una falta, el endpoint que la necesita devuelve un error explícito en lugar de fallar en silencio.</p>
+</section>
+
+<nav class="pagenav">
+  <a href="10-frontend.html">← Frontend</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="12-seguridad.html">Seguridad →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arquitectura — Trustmed Finanzas Docu.Técnica</title>
+<link rel="icon" type="image/webp" href="../assets/logo-forja.webp">
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Finanzas</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html" class="active">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-onboarding-wizard.html">Onboarding y wizard</a>
+  <a href="05-facturas-caja.html">Facturas y caja</a>
+  <a href="06-pricing-trustmap.html">Pricing y TrustMap</a>
+  <a href="07-planes-ia.html">Planes con IA</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">03 · Visión general</h2>
+  <h3 class="title">Vista de sistema</h3>
+  <p class="sub">Dos aplicaciones desplegadas por separado —un SPA en React 19 y una API FastAPI— sobre PostgreSQL, con un LLM local (Ollama) que genera los planes de acción. El diagrama va de arriba (cliente) hacia abajo (datos y servicios).</p>
+
+  <div class="legend" style="margin:0 0 16px">
+    <span><span class="dotc" style="background:var(--amber)"></span> Cliente / UI</span>
+    <span><span class="dotc" style="background:var(--em)"></span> Backend · FastAPI</span>
+    <span><span class="dotc" style="background:var(--violet)"></span> Persistencia</span>
+    <span><span class="dotc" style="background:var(--blue)"></span> Servicios externos</span>
+  </div>
+
+  <div class="diagram">
+
+    <!-- ===== Cliente ===== -->
+    <div class="layer">
+      <div class="layer-label">Cliente · navegador <span style="color:var(--ink-dim);font-weight:500;text-transform:none;letter-spacing:0">— SPA en Vercel</span></div>
+      <div class="row">
+        <div class="node ui"><span class="tag">React 19 · TS</span><div class="nh"><span class="dotc"></span> UI &amp; rutas</div><div class="nd">~24 páginas: landing, wizard, dashboard, facturas, caja, reportes, pricing, TrustMap, planes y guía.</div></div>
+        <div class="node ui"><span class="tag">Zustand</span><div class="nh"><span class="dotc"></span> Stores</div><div class="nd"><code>authStore</code>, <code>wizardStore</code>, <code>languageStore</code>. Token + perfil + consultorio en estado global.</div></div>
+        <div class="node ui"><span class="tag">i18next</span><div class="nh"><span class="dotc"></span> Multi-idioma</div><div class="nd">Español e inglés, 15+ archivos de traducción. Cambio en caliente con <code>LanguageToggle</code>.</div></div>
+        <div class="node ui"><span class="tag">Leaflet</span><div class="nh"><span class="dotc"></span> TrustMap</div><div class="nd">Mapa con clustering para ver la competencia geográficamente.</div></div>
+        <div class="node ui"><span class="tag">Axios</span><div class="nh"><span class="dotc"></span> Cliente HTTP</div><div class="nd">Interceptors: inyección del JWT, manejo de 401 (redirige a login).</div></div>
+      </div>
+    </div>
+
+    <div class="flowarrow">↓ &nbsp;<span style="font-size:11.5px;color:var(--ink-dim);font-family:var(--mono)">Authorization: Bearer · /api/v1</span>&nbsp; ↑</div>
+
+    <!-- ===== Borde de la API ===== -->
+    <div class="layer">
+      <div class="layer-label">Borde de la API · FastAPI (Railway)</div>
+      <div class="row">
+        <div class="node wrk"><span class="tag">middleware</span><div class="nh"><span class="dotc"></span> CORS</div><div class="nd">Whitelist por <code>CORS_ORIGINS</code>; permite el dominio prod y los puertos de dev.</div></div>
+        <div class="node wrk"><span class="tag">deps</span><div class="nh"><span class="dotc"></span> JWT auth</div><div class="nd"><code>middlewares/auth.py</code>: decodifica el token, resuelve el <code>User</code> y valida.</div></div>
+        <div class="node wrk"><span class="tag">middleware</span><div class="nh"><span class="dotc"></span> Logging + errores</div><div class="nd">Log JSON por request y manejador centralizado de excepciones.</div></div>
+        <div class="node wrk"><span class="tag">pydantic</span><div class="nh"><span class="dotc"></span> Schemas</div><div class="nd">Validación de entrada/salida por endpoint en <code>app/schemas/</code>.</div></div>
+      </div>
+    </div>
+
+    <div class="flowarrow">↓</div>
+
+    <!-- ===== Capas de la app ===== -->
+    <div class="layer">
+      <div class="layer-label">Capas de la app · controllers → services → models</div>
+      <div class="row">
+        <div class="node wrk"><span class="tag">9 controllers</span><div class="nh"><span class="dotc"></span> HTTP handlers</div><div class="nd">auth · wizard · facturas · caja · reportes · procedimientos · pricing · TrustMap · planes.</div></div>
+        <div class="node wrk"><span class="tag">15+ services</span><div class="nh"><span class="dotc"></span> Lógica de negocio</div><div class="nd">Cálculos financieros, integración con Ollama, parsing de Excel, generación de PDF, defaults por especialidad.</div></div>
+        <div class="node wrk"><span class="tag">24 models</span><div class="nh"><span class="dotc"></span> SQLAlchemy ORM</div><div class="nd">User, Consultorio, Factura, Procedimiento, ProcedimientoTarifa, MovimientoCaja, PlanAccion, etc.</div></div>
+      </div>
+    </div>
+
+    <div class="flowarrow">↓ &nbsp;<span style="font-size:11.5px;color:var(--ink-dim);font-family:var(--mono)">SQLAlchemy 2.0 · Alembic</span>&nbsp; ↑</div>
+
+    <!-- ===== Persistencia ===== -->
+    <div class="layer">
+      <div class="layer-label">Estado compartido</div>
+      <div class="row">
+        <div class="node state"><span class="tag">Railway</span><div class="nh"><span class="dotc"></span> PostgreSQL 16</div><div class="nd">24 tablas: identidad (users, consultorios), operación (procedimientos, tarifas, clientes), facturación, caja y planes con IA.</div></div>
+        <div class="node state"><span class="tag">migraciones</span><div class="nh"><span class="dotc"></span> Alembic</div><div class="nd">Esquema versionado. Se aplica con <code>alembic upgrade head</code> al desplegar.</div></div>
+      </div>
+    </div>
+
+    <div class="flowarrow">↕ &nbsp;<span style="font-size:11.5px;color:var(--ink-dim);font-family:var(--mono)">HTTP local · subprocesos · librerías</span></div>
+
+    <!-- ===== Servicios externos ===== -->
+    <div class="layer">
+      <div class="layer-label">Servicios externos / nube</div>
+      <div class="row">
+        <div class="node ext"><span class="tag">LLM</span><div class="nh"><span class="dotc"></span> Ollama (local)</div><div class="nd">Servidor de modelos locales (Mistral por defecto). Genera el JSON jerárquico de los planes de acción.</div></div>
+        <div class="node ext"><span class="tag">PDF</span><div class="nh"><span class="dotc"></span> ReportLab + Matplotlib</div><div class="nd">Generación de informes financieros descargables.</div></div>
+        <div class="node ext"><span class="tag">Excel</span><div class="nh"><span class="dotc"></span> Pandas + Openpyxl</div><div class="nd">Parseo de la plantilla de carga masiva de facturas.</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <h4 style="font-size:18px;margin:30px 0 12px">Flujo de una sesión, de extremo a extremo</h4>
+  <p>Dónde vive cada dato y qué componente lo mueve, paso a paso:</p>
+  <div class="tline">
+    <div class="ev"><span class="d">navegador → API</span><br><b>1 · Login</b><br>El usuario inicia sesión: el SPA llama <code>POST /api/v1/auth/login</code>, guarda el JWT y el consultorio activo en <code>authStore</code>, y desde ahí Axios inyecta <code>Authorization: Bearer</code> en cada request.</div>
+    <div class="ev"><span class="d">SPA → wizard</span><br><b>2 · Onboarding</b><br>Si el consultorio no está configurado, el guard redirige a <code>/wizard</code>. Los cinco pasos persisten en el backend (procedimientos, costos, tarifas) usando los defaults de la especialidad.</div>
+    <div class="ev"><span class="d">SPA → API → DB</span><br><b>3 · Datos operativos</b><br>Carga masiva de facturas (<code>POST /facturas/bulk</code>) y registro de movimientos de caja. El backend valida mínimos (≥20 facturas, ≥3 pagadores, etc.) y persiste en PostgreSQL.</div>
+    <div class="ev"><span class="d">API · servicios</span><br><b>4 · Análisis y pricing</b><br>Los reportes (<code>/reportes/analytics</code>, <code>/reportes/pdf</code>) y el módulo de pricing intelligence (<code>/pricing/benchmark</code>, <code>/pricing/simulate</code>) consumen las facturas y tarifas para devolver KPIs y simulaciones.</div>
+    <div class="ev"><span class="d">API → Ollama → DB</span><br><b>5 · Plan con IA</b><br>El usuario rellena el contexto y dispara <code>POST /planes</code>. El backend arma un prompt, llama a Ollama, parsea el JSON jerárquico y guarda <code>PlanAccion → Milestones → Fases → Tareas</code>. Cada generación queda en <code>GeneracionIALog</code>.</div>
+    <div class="ev"><span class="d">SPA</span><br><b>6 · Seguimiento</b><br>El médico marca tareas como completadas; el progreso cascadea de tareas a fases, milestones y plan. El dashboard refleja el estado actual de los KPIs frente al baseline.</div>
+  </div>
+
+  <div class="grid g2" style="margin:8px 0 6px">
+    <div class="card">
+      <h4>Principio · separar facturación y caja</h4>
+      <p>Las facturas representan derechos de cobro (con su estado); la caja representa el flujo real de dinero. Mantenerlas en módulos distintos —con un puente opcional <code>factura_id</code> en los movimientos— permite ver el desfase entre facturar y cobrar, especialmente con pagadores que demoran.</p>
+    </div>
+    <div class="card">
+      <h4>Principio · IA local y auditable</h4>
+      <p>La generación de planes corre en Ollama dentro de la infraestructura del usuario: los datos sensibles no salen a una API de terceros. Cada llamada queda registrada en <code>GeneracionIALog</code> (prompt, respuesta cruda, tiempo, errores) para depurar y auditar.</p>
+    </div>
+  </div>
+
+  <h4 style="font-size:18px;margin:26px 0 14px">Componentes de un vistazo</h4>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Componente</th><th>Tecnología</th><th>Responsabilidad</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge b-amber">Frontend</span></td><td class="mono-col"><code>React 19 · Vite · TS</code></td><td>SPA con rutas protegidas, formularios, gráficas (ApexCharts/Recharts), mapas (Leaflet) e i18n.</td></tr>
+        <tr><td><span class="badge b-em">API</span></td><td class="mono-col"><code>FastAPI</code></td><td>Endpoints bajo <code>/api/v1</code>, validación Pydantic, JWT, Swagger UI en <code>/api/docs</code>.</td></tr>
+        <tr><td><span class="badge b-em">Auth</span></td><td class="mono-col"><code>python-jose · bcrypt</code></td><td>JWT HS256 (30 min) + hash de contraseñas con bcrypt.</td></tr>
+        <tr><td><span class="badge b-em">Controllers</span></td><td class="mono-col"><code>app/controllers/</code></td><td>Capa HTTP por dominio (auth, wizard, facturas, caja, reportes, pricing, TrustMap, planes…).</td></tr>
+        <tr><td><span class="badge b-em">Services</span></td><td class="mono-col"><code>app/services/</code></td><td>Lógica de negocio y orquestación: cálculos, parsing Excel, llamadas a Ollama, generación PDF.</td></tr>
+        <tr><td><span class="badge b-violet">DB</span></td><td class="mono-col"><code>PostgreSQL 16 · Alembic</code></td><td>24 tablas con relaciones y migraciones versionadas; fallback a SQLite en local si no hay URL.</td></tr>
+        <tr><td><span class="badge b-blue">Ollama</span></td><td class="mono-col"><code>HTTP localhost:11434</code></td><td>Servidor LLM local; modelo por defecto Mistral; temperatura y timeout configurables por env.</td></tr>
+        <tr><td><span class="badge b-blue">Reportes</span></td><td class="mono-col"><code>ReportLab · Matplotlib</code></td><td>PDF con gráficas embebidas para descargar.</td></tr>
+        <tr><td><span class="badge b-blue">Excel</span></td><td class="mono-col"><code>Pandas · Openpyxl</code></td><td>Plantilla de carga masiva y parser de facturas.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<nav class="pagenav">
+  <a href="02-glosario.html">← Glosario</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="04-onboarding-wizard.html">Onboarding y wizard →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trustmed Finanzas — Documentación Técnica</title>
+<link rel="icon" type="image/webp" href="../assets/logo-forja.webp">
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<!-- ============ SIDEBAR ============ -->
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Finanzas</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+
+  <div class="group-label">El sistema</div>
+  <a href="04-onboarding-wizard.html">Onboarding y wizard</a>
+  <a href="05-facturas-caja.html">Facturas y caja</a>
+  <a href="06-pricing-trustmap.html">Pricing y TrustMap</a>
+  <a href="07-planes-ia.html">Planes con IA</a>
+
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<!-- ============ MAIN ============ -->
+<main>
+
+<header class="hero">
+  <span class="eyebrow"><span class="dot" style="width:7px;height:7px;border-radius:50%;background:var(--em)"></span> Inteligencia financiera para clínicas</span>
+  <h1>Trustmed Finanzas</h1>
+  <p class="lead">Plataforma SaaS que ayuda a <b style="color:var(--ink)">consultorios y clínicas</b> a entender su rentabilidad y optimizarla: carga de <b style="color:var(--ink)">facturas</b>, gestión de <b style="color:var(--ink)">caja</b>, análisis de <b style="color:var(--ink)">precios de mercado</b>, mapa competitivo <b style="color:var(--ink)">TrustMap</b> y <b style="color:var(--ink)">planes de acción generados con IA</b>. Multi-idioma, multi-tier y desplegada en la nube.</p>
+  <div class="meta">
+    <span class="chip"><span class="dot"></span> Python <b>3.10+</b> · FastAPI</span>
+    <span class="chip"><span class="dot"></span> React <b>19</b> · TypeScript · Vite</span>
+    <span class="chip"><span class="dot"></span> PostgreSQL <b>+ SQLAlchemy</b></span>
+    <span class="chip"><span class="dot"></span> Ollama <b>(IA local)</b></span>
+    <span class="chip"><span class="dot"></span> Leaflet <b>· mapas</b></span>
+    <span class="chip"><span class="dot"></span> Railway <b>+ Vercel</b></span>
+  </div>
+</header>
+
+<section>
+  <h2 class="sec">Índice</h2>
+  <h3 class="title">Contenido de la documentación</h3>
+  <p class="sub">Catorce secciones que cubren el sistema de extremo a extremo: desde qué problema resuelve hasta cómo operarlo en producción. Recórrelas en orden o salta a la que necesites.</p>
+
+  <div class="group-label" style="margin:0 0 12px">Visión general</div>
+  <div class="grid g3" style="margin-bottom:24px">
+    <a class="card idx-card" href="01-resumen.html"><span class="idx-n">01</span><p class="idx-t">Resumen ejecutivo</p><p class="idx-d">Qué problema resuelve y para quién, en una página.</p></a>
+    <a class="card idx-card" href="02-glosario.html"><span class="idx-n">02</span><p class="idx-t">Glosario</p><p class="idx-d">Los términos que aparecen en todo el documento.</p></a>
+    <a class="card idx-card" href="03-arquitectura.html"><span class="idx-n">03</span><p class="idx-t">Arquitectura</p><p class="idx-d">Frontend, backend, base de datos e IA en una vista.</p></a>
+  </div>
+
+  <div class="group-label" style="margin:0 0 12px">El sistema</div>
+  <div class="grid g2" style="margin-bottom:24px">
+    <a class="card idx-card" href="04-onboarding-wizard.html"><span class="idx-n">04</span><p class="idx-t">Onboarding y wizard</p><p class="idx-d">Registro y los cinco pasos para configurar el consultorio.</p></a>
+    <a class="card idx-card" href="05-facturas-caja.html"><span class="idx-n">05</span><p class="idx-t">Facturas y caja</p><p class="idx-d">Carga masiva de facturas, cuentas, movimientos y transferencias.</p></a>
+    <a class="card idx-card" href="06-pricing-trustmap.html"><span class="idx-n">06</span><p class="idx-t">Pricing y TrustMap</p><p class="idx-d">Benchmark de precios, simulaciones y mapa competitivo.</p></a>
+    <a class="card idx-card" href="07-planes-ia.html"><span class="idx-n">07</span><p class="idx-t">Planes con IA</p><p class="idx-d">Plan → Milestones → Fases → Tareas generados por Ollama.</p></a>
+  </div>
+
+  <div class="group-label" style="margin:0 0 12px">Datos &amp; API</div>
+  <div class="grid g3" style="margin-bottom:24px">
+    <a class="card idx-card" href="08-base-datos.html"><span class="idx-n">08</span><p class="idx-t">Base de datos</p><p class="idx-d">24 modelos SQLAlchemy en PostgreSQL, migraciones con Alembic.</p></a>
+    <a class="card idx-card" href="09-api.html"><span class="idx-n">09</span><p class="idx-t">API REST</p><p class="idx-d">Endpoints bajo <code>/api/v1</code> protegidos por JWT.</p></a>
+    <a class="card idx-card" href="10-frontend.html"><span class="idx-n">10</span><p class="idx-t">Frontend</p><p class="idx-d">SPA React 19 + TypeScript con Zustand, Leaflet y i18next.</p></a>
+  </div>
+
+  <div class="group-label" style="margin:0 0 12px">Infraestructura</div>
+  <div class="grid g2">
+    <a class="card idx-card" href="11-integraciones.html"><span class="idx-n">11</span><p class="idx-t">Integraciones externas</p><p class="idx-d">Ollama, Leaflet, generación de PDF y email.</p></a>
+    <a class="card idx-card" href="12-seguridad.html"><span class="idx-n">12</span><p class="idx-t">Seguridad</p><p class="idx-d">JWT, bcrypt, CORS, propiedad por consultorio y tiers.</p></a>
+    <a class="card idx-card" href="13-stack-deploy.html"><span class="idx-n">13</span><p class="idx-t">Stack &amp; Deploy</p><p class="idx-d">Railway para el backend, Vercel para el frontend.</p></a>
+    <a class="card idx-card" href="14-operacion.html"><span class="idx-n">14</span><p class="idx-t">Operación</p><p class="idx-d">Setup local, variables de entorno y puntos delicados.</p></a>
+  </div>
+</section>
+
+<nav class="pagenav">
+  <span class="spacer"></span>
+  <a href="01-resumen.html">Empezar: Resumen ejecutivo →</a>
+</nav>
+
+<div class="footer">
+  <p><b>Trustmed Finanzas</b> — Documentación técnica generada a partir del análisis del código fuente (backend FastAPI, frontend React/TypeScript), el esquema de base de datos y la configuración de despliegue del proyecto.</p>
+</div>
+
+</main>
+</div>
+</body>
+</html>

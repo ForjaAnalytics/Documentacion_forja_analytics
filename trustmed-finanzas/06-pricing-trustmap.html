@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pricing y TrustMap — Trustmed Finanzas Docu.Técnica</title>
+<link rel="icon" type="image/webp" href="../assets/logo-forja.webp">
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Finanzas</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-onboarding-wizard.html">Onboarding y wizard</a>
+  <a href="05-facturas-caja.html">Facturas y caja</a>
+  <a href="06-pricing-trustmap.html" class="active">Pricing y TrustMap</a>
+  <a href="07-planes-ia.html">Planes con IA</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">06 · El sistema</h2>
+  <h3 class="title">Pricing intelligence y TrustMap</h3>
+  <p class="sub">Dos vistas conectadas sobre la misma idea: <strong>el mercado importa</strong>. Una compara precios y simula su impacto; la otra muestra geográficamente a la competencia.</p>
+
+  <h4 style="font-size:18px;margin:0 0 12px"><span class="badge b-blue">Pricing intelligence</span> Benchmark y simulación</h4>
+  <p>Toma los precios actuales del consultorio (por procedimiento y tipo de pagador) y los compara con los del mercado en un <strong>radio configurable</strong>. La idea no es decirle al médico cuánto cobrar, sino mostrarle <em>dónde está parado</em> y qué pasaría si se moviera.</p>
+
+  <div class="grid g3" style="margin:14px 0">
+    <div class="card"><h4>Benchmark</h4><p><code>GET /pricing/benchmark</code> devuelve, por procedimiento, el rango de precios del mercado (mín, percentil 25, mediana, percentil 75, máx) y la posición del consultorio dentro de ese rango.</p></div>
+    <div class="card"><h4>Simulación</h4><p><code>POST /pricing/simulate</code> recibe un cambio de precio y devuelve el impacto estimado en volumen e ingresos según una elasticidad sectorial.</p></div>
+    <div class="card"><h4>Recomendaciones</h4><p><code>GET /pricing/recomendaciones</code> sugiere ajustes basados en el delta vs. mediana, márgenes actuales y posición relativa.</p></div>
+  </div>
+
+  <h4 style="font-size:16px;margin:20px 0 10px">Escenarios de simulación</h4>
+  <p>Cada simulación entrega tres lecturas para hacer visible la incertidumbre:</p>
+  <div class="tw"><table>
+    <thead><tr><th>Escenario</th><th>Supuesto</th><th>Lectura</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-gray">Conservador</span></td><td>Demanda muy sensible al precio (elasticidad alta).</td><td>El piso de impacto: si la realidad sale así de mala, esto ganaría o perdería.</td></tr>
+      <tr><td><span class="badge b-em">Moderado</span></td><td>Elasticidad típica del sector y especialidad.</td><td>La lectura central, la más probable.</td></tr>
+      <tr><td><span class="badge b-violet">Optimista</span></td><td>Demanda poco sensible (clientes fieles, sin competencia cercana).</td><td>El techo: en el mejor caso, esto es lo que pasa.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:18px;margin:30px 0 12px"><span class="badge b-blue">TrustMap</span> Mapa competitivo</h4>
+  <p>Una vista geográfica de la competencia construida con <strong>Leaflet</strong>. Cada doctor o clínica aparece como un punto en el mapa, con <em>clustering</em> automático cuando hay muchos en una zona. El panel lateral filtra por especialidad, rango de precios y radio (5–100 km) y muestra estadísticas agregadas.</p>
+
+  <h4 style="font-size:16px;margin:20px 0 10px">Componentes del mapa</h4>
+  <div class="grid g2">
+    <div class="card"><h4><code>MapView</code></h4><p>Componente principal con <code>react-leaflet</code> y <code>react-leaflet-cluster</code>: tiles, marcadores agrupados, popups con resumen de cada competidor.</p></div>
+    <div class="card"><h4><code>FilterPanel</code> + <code>RadiusSelector</code></h4><p>Filtros activos sobre el conjunto: especialidad, rango de precios, radio. El estado se sincroniza con un hook <code>useCompetitiveAnalysis()</code>.</p></div>
+    <div class="card"><h4><code>DoctorCard</code></h4><p>Tarjeta de un competidor: nombre, especialidad, ubicación, rango de precios reportado. Se usa tanto en popup como en panel lateral.</p></div>
+    <div class="card"><h4><code>StatisticsPanel</code> + <code>RecommendationsPanel</code></h4><p>Resumen agregado de la zona seleccionada (densidad de oferta, precios medios, márgenes esperados) y recomendaciones derivadas.</p></div>
+  </div>
+
+  <h4 style="font-size:16px;margin:24px 0 10px">Endpoints del módulo</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Endpoint</th><th>Descripción</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET /trustmap/user-context</code></td><td>Devuelve el contexto del usuario (ubicación, especialidad, precios actuales) para centrar el mapa.</td></tr>
+      <tr><td><code>GET /trustmap/competencia</code></td><td>Lista los competidores en el radio seleccionado.</td></tr>
+      <tr><td><code>GET /trustmap/estadisticas</code></td><td>Agregados de la zona: densidad, distribución de precios, especialidades dominantes.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h4 style="font-size:16px;margin:24px 0 10px">Fuente de datos</h4>
+  <p>Para el MVP, el frontend incluye un dataset estático (<code>src/data/doctores.json</code>) con doctores y clínicas geocodificados. El backend expone los mismos endpoints para alimentar el mapa desde una fuente dinámica cuando se integre con una base de competidores actualizada.</p>
+
+  <p style="margin-top:18px"><strong>Acceso por tier.</strong> El benchmark y el TrustMap completos son funcionalidades <em>premium</em>. El tier <code>free</code> ve una versión limitada (sin recomendaciones detalladas ni simulación) cubierta por el <code>PremiumOverlay</code>.</p>
+</section>
+
+<nav class="pagenav">
+  <a href="05-facturas-caja.html">← Facturas y caja</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="07-planes-ia.html">Planes con IA →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

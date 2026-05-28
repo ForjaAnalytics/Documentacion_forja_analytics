@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resumen ejecutivo — Trustmed Finanzas Docu.Técnica</title>
+<link rel="icon" type="image/webp" href="../assets/logo-forja.webp">
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Finanzas</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html" class="active">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-onboarding-wizard.html">Onboarding y wizard</a>
+  <a href="05-facturas-caja.html">Facturas y caja</a>
+  <a href="06-pricing-trustmap.html">Pricing y TrustMap</a>
+  <a href="07-planes-ia.html">Planes con IA</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">01 · Visión general</h2>
+  <h3 class="title">Resumen ejecutivo</h3>
+  <p class="sub">Qué problema resuelve Trustmed Finanzas, para quién, y cómo lo hace — en una página.</p>
+
+  <p>Un consultorio o una clínica pequeña-mediana suele saber cuánto factura, pero no <strong>cuánto realmente gana</strong> por tipo de pagador, por procedimiento o por mes. La información vive desperdigada entre Excel, contadores, EPS y la cabeza del médico. <strong>Trustmed Finanzas</strong> reúne esa información en un solo lugar y la convierte en decisiones: ¿qué precios subo o bajo?, ¿qué tipo de pacientes me deja más margen?, ¿qué tengo que hacer este mes para mejorar?</p>
+
+  <div class="grid g2" style="margin:22px 0">
+    <div class="card">
+      <h4><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 3v18M3 12h18"/></svg></span> El problema</h4>
+      <p>La rentabilidad real de un consultorio queda oculta entre la facturación bruta, los pagos diferidos de las EPS, los costos fijos y los movimientos de caja. Sin esa foto integral es difícil saber si un cambio de precio, un nuevo tipo de pagador o una promoción mejoraron o empeoraron las cosas.</p>
+    </div>
+    <div class="card">
+      <h4><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg></span> La solución</h4>
+      <p>Un SaaS que consolida facturas, caja, tarifas y benchmark de mercado en una sola plataforma; visualiza la competencia en un mapa; y genera planes de acción concretos —Milestones, fases y tareas— con IA local, ajustados al contexto del consultorio.</p>
+    </div>
+  </div>
+
+  <h4 style="font-size:18px;margin:26px 0 12px">Cómo lo hace</h4>
+  <div class="pipe">
+    <div class="stage"><div class="sn">PASO 1</div><div class="st">Onboarding</div><div class="sw">Wizard 5 pasos</div><div class="rf">Costos, procedimientos, tarifas</div></div>
+    <div class="stage"><div class="sn">PASO 2</div><div class="st">Datos</div><div class="sw">Facturas + Caja</div><div class="rf">Carga masiva y movimientos</div></div>
+    <div class="stage"><div class="sn">PASO 3</div><div class="st">Análisis</div><div class="sw">Reportes + PDF</div><div class="rf">Rentabilidad por pagador</div></div>
+    <div class="stage"><div class="sn">PASO 4</div><div class="st">Mercado</div><div class="sw">Pricing + TrustMap</div><div class="rf">Benchmark vs competencia</div></div>
+    <div class="stage"><div class="sn">PASO 5</div><div class="st">Acción</div><div class="sw">Planes IA</div><div class="rf">Tareas con seguimiento</div></div>
+  </div>
+
+  <p style="margin-top:20px">El sistema separa la <strong>facturación</strong> (lo que se debe cobrar y a quién, con su estado) del <strong>flujo de caja</strong> real (entradas y salidas, por cuenta y medio de pago). Esa separación permite ver el desfase entre facturar y cobrar —típico con EPS— y construir el flujo verdadero del negocio.</p>
+
+  <h4 style="font-size:18px;margin:26px 0 12px">De un vistazo</h4>
+  <div class="grid g3">
+    <div class="card"><p class="kpi">2<small>aplicaciones: backend FastAPI + frontend React 19 / TypeScript</small></p></div>
+    <div class="card"><p class="kpi">24<small>modelos SQLAlchemy en PostgreSQL (24 tablas)</small></p></div>
+    <div class="card"><p class="kpi">9<small>módulos funcionales: auth, wizard, facturas, caja, pricing, TrustMap, planes IA, reportes, guía</small></p></div>
+  </div>
+
+  <p style="margin-top:22px"><strong>Para quién es.</strong> Propietarios de consultorios y clínicas pequeñas/medianas en Latinoamérica (enfoque inicial Colombia). Los precios y los movimientos están pensados en pesos colombianos y medios de pago locales (Nequi, Daviplata, PSE). La interfaz funciona en español e inglés.</p>
+
+  <p><strong>Lo que NO es.</strong> No es un sistema contable ni un ERP completo: no factura electrónicamente, no genera obligaciones tributarias y no reemplaza al contador. Es una capa de <em>inteligencia</em> sobre los datos que el consultorio ya tiene.</p>
+</section>
+
+<nav class="pagenav">
+  <span class="spacer"></span>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="02-glosario.html">Glosario →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>

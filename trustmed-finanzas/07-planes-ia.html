@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planes con IA — Trustmed Finanzas Docu.Técnica</title>
+<link rel="icon" type="image/webp" href="../assets/logo-forja.webp">
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <div class="brand"><div><b>Trustmed Finanzas</b><small>Docu.Técnica</small></div></div>
+  <a class="toc-back" href="../index.html">← Catálogo ForjaAnalytics</a>
+  <div class="group-label">Visión general</div>
+  <a href="01-resumen.html">Resumen ejecutivo</a>
+  <a href="02-glosario.html">Glosario</a>
+  <a href="03-arquitectura.html">Arquitectura</a>
+  <div class="group-label">El sistema</div>
+  <a href="04-onboarding-wizard.html">Onboarding y wizard</a>
+  <a href="05-facturas-caja.html">Facturas y caja</a>
+  <a href="06-pricing-trustmap.html">Pricing y TrustMap</a>
+  <a href="07-planes-ia.html" class="active">Planes con IA</a>
+  <div class="group-label">Datos &amp; API</div>
+  <a href="08-base-datos.html">Base de datos</a>
+  <a href="09-api.html">API REST</a>
+  <a href="10-frontend.html">Frontend</a>
+  <div class="group-label">Infraestructura</div>
+  <a href="11-integraciones.html">Integraciones externas</a>
+  <a href="12-seguridad.html">Seguridad</a>
+  <a href="13-stack-deploy.html">Stack &amp; Deploy</a>
+  <a href="14-operacion.html">Operación</a>
+</nav>
+
+<main>
+<section>
+  <h2 class="sec">07 · El sistema</h2>
+  <h3 class="title">Planes de acción con IA</h3>
+  <p class="sub">El médico responde un cuestionario de contexto; Ollama genera un roadmap jerárquico —Plan → Milestones → Fases → Tareas— ajustado al consultorio. El sistema lo persiste, lo presenta editable y mantiene el progreso al día.</p>
+
+  <h4 style="font-size:18px;margin:0 0 12px">La jerarquía</h4>
+  <div class="diagram">
+    <div class="layer">
+      <div class="layer-label">Contexto · entrada del médico</div>
+      <div class="row">
+        <div class="node state"><span class="tag">PlanContexto</span><div class="nh"><span class="dotc"></span> Cuestionario inicial</div><div class="nd">Región, país, base de datos de clientes, marketing, CRM, descuentos, promociones, ventas secundarias…</div></div>
+      </div>
+    </div>
+    <div class="flowarrow">↓ &nbsp;<span style="font-size:11.5px;color:var(--ink-dim);font-family:var(--mono)">prompt construido por el backend</span></div>
+    <div class="layer">
+      <div class="layer-label">Plan</div>
+      <div class="row">
+        <div class="node wrk"><span class="tag">PlanAccion</span><div class="nh"><span class="dotc"></span> El roadmap</div><div class="nd">Nombre, descripción, KPIs <em>baseline / target / actual</em>, estado, fechas, progreso.</div></div>
+      </div>
+    </div>
+    <div class="flowarrow">↓</div>
+    <div class="layer">
+      <div class="layer-label">Milestones</div>
+      <div class="row">
+        <div class="node wrk"><span class="tag">PlanMilestone</span><div class="nh"><span class="dotc"></span> Hitos</div><div class="nd">Número, nombre, fechas, KPIs específicos, completado, progreso.</div></div>
+      </div>
+    </div>
+    <div class="flowarrow">↓</div>
+    <div class="layer">
+      <div class="layer-label">Fases</div>
+      <div class="row">
+        <div class="node wrk"><span class="tag">PlanFase</span><div class="nh"><span class="dotc"></span> Tramos del milestone</div><div class="nd">Número, nombre, objetivo (KPI), fechas, progreso.</div></div>
+      </div>
+    </div>
+    <div class="flowarrow">↓</div>
+    <div class="layer">
+      <div class="layer-label">Tareas (con subtareas y dependencias)</div>
+      <div class="row">
+        <div class="node ui"><span class="tag">PlanTarea</span><div class="nh"><span class="dotc"></span> Lo accionable</div><div class="nd">Prioridad 1–5, estado, fechas, horas estimadas/reales, métricas antes/después, asignado, subtareas y dependencias.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <h4 style="font-size:16px;margin:26px 0 10px">Generación con Ollama</h4>
+  <p>El servicio <code>plan_service</code> arma un prompt a partir del <code>PlanContexto</code>, los datos operativos del consultorio y los KPIs actuales, y llama al servidor de Ollama:</p>
+  <pre>POST http://localhost:11434/api/generate
+{
+  <span class="f">"model"</span>:       <span class="s">"mistral"</span>,
+  <span class="f">"prompt"</span>:      <span class="s">"&lt;contexto + plantilla del roadmap&gt;"</span>,
+  <span class="f">"temperature"</span>: 0.7,
+  <span class="f">"format"</span>:      <span class="s">"json"</span>
+}</pre>
+  <p>La respuesta es un JSON con la jerarquía completa (plan + milestones + fases + tareas). El servicio la valida con Pydantic y la persiste en una transacción. Si Ollama no responde o devuelve un JSON inválido, se aborta y se devuelve un 503 con el detalle.</p>
+
+  <h4 style="font-size:16px;margin:24px 0 10px">Auditoría: <code>GeneracionIALog</code></h4>
+  <p>Cada llamada al modelo deja un registro con:</p>
+  <ul>
+    <li><code>modelo_usado</code>, <code>temperatura</code></li>
+    <li><code>prompt_enviado</code> y <code>respuesta_cruda</code></li>
+    <li><code>datos_analisis</code> (los KPIs que se mandaron como contexto)</li>
+    <li><code>tiempo_generacion_ms</code></li>
+    <li><code>exitoso</code>, <code>error_mensaje</code>, <code>advertencias</code></li>
+  </ul>
+  <p>Sirve para depurar prompts, comparar versiones del modelo y rastrear por qué un plan salió como salió.</p>
+
+  <h4 style="font-size:16px;margin:24px 0 10px">Progreso en cascada</h4>
+  <p>El progreso siempre fluye de abajo hacia arriba:</p>
+  <div class="erline">
+    <span class="badge b-em">Tareas</span> → <span class="badge b-em">Fases</span> → <span class="badge b-em">Milestones</span> → <span class="badge b-em">Plan</span>
+  </div>
+  <p>Cuando una tarea pasa a <code>completada</code>, el sistema recalcula el porcentaje de su fase; con eso, el del milestone; y con eso, el del plan. Las dependencias entre tareas (<code>PlanTareaDependencia</code>) permiten bloquear una tarea hasta que se complete su predecesora.</p>
+
+  <h4 style="font-size:16px;margin:24px 0 10px">KPIs por nivel</h4>
+  <p>Cada nivel guarda su propio JSON de KPIs:</p>
+  <ul>
+    <li><strong>Plan</strong> — <code>kpis_baseline</code> (cómo estaba al empezar), <code>kpis_target</code> (a dónde quiere llegar), <code>kpis_actual</code> (estado de hoy).</li>
+    <li><strong>Milestone</strong> — <code>kpis</code> específicos del hito.</li>
+    <li><strong>Tarea</strong> — <code>metricas_antes</code> y <code>metricas_despues</code> para cuantificar el impacto de cada tarea ejecutada.</li>
+  </ul>
+
+  <h4 style="font-size:16px;margin:24px 0 10px">UI · páginas relacionadas</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Ruta</th><th>Función</th></tr></thead>
+    <tbody>
+      <tr><td><code>/generar-plan</code></td><td>Formulario de contexto (<code>FormularioPlanContexto</code>) y disparo de la generación.</td></tr>
+      <tr><td><code>/planes</code></td><td>Lista de planes existentes con su estado y progreso.</td></tr>
+      <tr><td><code>/planes/:id</code></td><td>Detalle del plan: navegación por milestones/fases/tareas, marcado de avance y métricas.</td></tr>
+    </tbody>
+  </table></div>
+
+  <p style="margin-top:18px"><strong>Por qué IA local.</strong> Ollama corre dentro de la infraestructura del usuario, así que los datos del consultorio (facturación, costos, márgenes) <strong>no salen a una API de terceros</strong>. El modelo, la temperatura y el timeout son configurables por entorno (<code>OLLAMA_MODEL</code>, <code>OLLAMA_TEMPERATURA</code>, <code>OLLAMA_TIMEOUT</code>).</p>
+</section>
+
+<nav class="pagenav">
+  <a href="06-pricing-trustmap.html">← Pricing y TrustMap</a>
+  <a class="idx" href="index.html">Índice</a>
+  <a href="08-base-datos.html">Base de datos →</a>
+</nav>
+
+</main>
+</div>
+</body>
+</html>
